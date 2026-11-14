@@ -1,0 +1,34 @@
+# Secrets
+.env
+.env.*
+!.env.example
+keystore/
+*.keystore
+*.jks
+
+# Unity (project lives in PARLOR/)
+PARLOR/[Ll]ibrary/
+PARLOR/[Tt]emp/
+PARLOR/[Oo]bj/
+PARLOR/[Ll]ogs/
+PARLOR/[Uu]ser[Ss]ettings/
+PARLOR/[Bb]uild/
+PARLOR/[Bb]uilds/
+PARLOR/MemoryCaptures/
+PARLOR/*.csproj
+PARLOR/*.sln
+PARLOR/.vs/
+PARLOR/.idea/
+PARLOR/*.apk
+PARLOR/*.aab
+PARLOR/*.symbols.zip
+
+# Build outputs and captures
+Builds/
+Captures/
+
+# OS
+.DS_Store
+
+# Generated art variants (winners are copied into PARLOR/Assets)
+ArtGen/
