@@ -32,3 +32,6 @@ Captures/
 
 # Generated art variants (winners are copied into PARLOR/Assets)
 ArtGen/
+
+# Generated audio staging (final clips are copied into PARLOR/Assets)
+AudioGen/

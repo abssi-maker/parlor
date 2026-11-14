@@ -1,0 +1,6 @@
+{
+  "name": "Parlor",
+  "rootNamespace": "Parlor",
+  "references": ["Unity.TextMeshPro"],
+  "autoReferenced": true
+}

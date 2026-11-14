@@ -1,0 +1,6 @@
+{
+  "name": "Parlor.Editor",
+  "rootNamespace": "Parlor.EditorTools",
+  "references": ["Parlor", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime", "Unity.RenderPipelines.Core.Editor", "Unity.RenderPipelines.Universal.Editor"],
+  "includePlatforms": ["Editor"]
+}

@@ -1,0 +1,6 @@
+﻿<Solution>
+  <Project Path="Parlor.csproj" />
+  <Project Path="Parlor.Tests.EditMode.csproj" />
+  <Project Path="Parlor.Editor.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
+</Solution>
