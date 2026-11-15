@@ -450,7 +450,7 @@ namespace Parlor
                 c.transform.localScale = Vector3.one * 0.3f;
             }
             // rise out of the case one after another, face towards the user, tilted back to meet the gaze
-            Quaternion facing = Quaternion.Euler(-18, 0, 0);
+            Quaternion facing = Quaternion.Euler(-10, 0, 0);
             for (int i = 0; i < 3; i++)
             {
                 Sfx("card_flip", _cards[i].transform.position, 0.7f, 1f + i * 0.08f);
@@ -472,7 +472,9 @@ namespace Parlor
             for (float t = 0; t < 4.0f; t += Time.deltaTime)
             {
                 for (int i = 0; i < 3; i++) world[i] = _cards[i].transform.position;
-                picker.Accumulate(Head.Head, world, Stage.up, Time.deltaTime);
+                // People glance along the row first and then settle on their card, so later looking counts for more
+                // (about four times as much at the end as at the start).
+                picker.Accumulate(Head.Head, world, Stage.up, Time.deltaTime * Mathf.Lerp(0.35f, 1.5f, t / 4.0f));
                 // the cards breathe a little so the wait feels alive
                 for (int i = 0; i < 3; i++) _cards[i].transform.localPosition = slots[i] + Vector3.up * (Mathf.Sin(Time.time * 1.7f + i) * 0.004f);
                 yield return null;

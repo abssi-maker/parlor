@@ -58,6 +58,8 @@ namespace Parlor
                 case "abovePlace": p = st.TransformPoint(new Vector3(0.02f, 0.10f, -0.15f)); break;
                 case "palm": p = st.TransformPoint(new Vector3(0.0f, 0.10f, -0.22f)); break;
                 case "case": p = d.Case.CoverPoint + st.up * 0.05f; break;
+                // wrist position for a flat, palm-down hand whose palm is over the case (fingers along world +Z)
+                case "caseWrist": p = d.Case.CoverPoint + st.up * 0.06f - Vector3.forward * 0.09f; break;
                 case "aboveCase": p = d.Case.CoverPoint + st.up * 0.26f; break;
                 case "token": p = d.Token.transform.position; break;
                 case "beforeToken": p = d.Token.transform.position - st.forward * 0.08f; break;
@@ -81,6 +83,27 @@ namespace Parlor
             Vector3 eye = app.Head.Head.position;
             Quaternion q = Quaternion.LookRotation((target - eye).normalized, Vector3.up);
             return string.Format(c, "{0:F3} {1:F3} {2:F3} {3:F4} {4:F4} {5:F4} {6:F4}", eye.x, eye.y, -eye.z, -q.x, -q.y, q.z, q.w);
+        }
+
+        /// <summary>
+        /// Static render cost of what is switched on right now: renderers (an upper bound on draw calls before
+        /// batching), distinct materials and triangles. This is the number the performance budget is checked against.
+        /// </summary>
+        public static string Stats()
+        {
+            var app = ParlorApp.Instance;
+            if (!app) return "";
+            int renderers = 0, tris = 0; var mats = new HashSet<Material>();
+            foreach (var r in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+            {
+                if (!r.enabled || !r.gameObject.activeInHierarchy) continue;
+                Mesh m = r is SkinnedMeshRenderer s ? s.sharedMesh : r.GetComponent<MeshFilter>() ? r.GetComponent<MeshFilter>().sharedMesh : null;
+                if (r is ParticleSystemRenderer) { renderers++; mats.Add(r.sharedMaterial); continue; }
+                if (!m) continue;
+                renderers++; tris += (int)(m.GetIndexCount(0) / 3); mats.Add(r.sharedMaterial);
+            }
+            return "stats renderers=" + renderers + " materials=" + mats.Count + " triangles=" + tris
+                   + " fps=" + (1f / Mathf.Max(1e-4f, Time.smoothDeltaTime)).ToString("F0") + " beat=" + app.Director.Model.State;
         }
 
         /// <summary>What the show currently sees of each hand, for calibrating simulated poses.</summary>

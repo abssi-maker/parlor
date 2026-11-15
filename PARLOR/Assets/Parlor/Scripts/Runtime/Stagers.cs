@@ -94,7 +94,7 @@ namespace Parlor
             _root.SetParent(transform, false);
             _root.SetPositionAndRotation(set.position, set.rotation);
             float w = size.x, h = size.y, top = h * 0.5f;
-            var velvet = Mats.Lit("wallvelvet", "velvet", new Color(0.86f, 0.80f, 0.80f), clip: Mats.ClipNone, rim: 0.35f, twoSided: true, tiling: new Vector2(2f, 1f));
+            var velvet = Mats.Lit("wallvelvet", "velvet", new Color(1.25f, 0.95f, 0.95f), clip: Mats.ClipNone, rim: 0.35f, unlit: 0.55f, twoSided: true, tiling: new Vector2(2f, 1f));
             var gold = Mats.Lit("wallgold", null, Mats.Gold, clip: Mats.ClipNone, rim: 1.1f);
 
             // Two tied-back drapes hanging from the top, and a scalloped valance with a gold fringe across it.

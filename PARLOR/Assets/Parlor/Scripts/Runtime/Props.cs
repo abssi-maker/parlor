@@ -13,10 +13,10 @@ namespace Parlor
     {
         public static readonly Vector3 CoinLanding = new Vector3(-0.105f, 0f, -0.195f);
         public static readonly Vector3 Case = new Vector3(0.125f, 0f, -0.205f);
-        public static readonly Vector3 CardRowCentre = new Vector3(0f, 0.145f, 0.13f);
+        public static readonly Vector3 CardRowCentre = new Vector3(0f, 0.125f, -0.10f);   // between the user and the magician, below his face
         public const float CardSpacing = 0.165f;
-        public static readonly Vector3 Caption = new Vector3(0f, 0.228f, 0.13f);   // just above the card row and the magician, in the same glance
-        public static readonly Vector3 Encore = new Vector3(0f, 0.12f, -0.17f);
+        public static readonly Vector3 Caption = new Vector3(0f, 0.295f, 0.06f);   // just above his hat
+        public static readonly Vector3 Encore = new Vector3(-0.15f, 0.11f, -0.14f);   // to his side: never in front of him
         public static readonly Vector3 ExpectedEye = new Vector3(0f, 0.40f, -0.57f);
         public const float Reach = 0.61f;
     }
@@ -274,7 +274,7 @@ namespace Parlor
             e.ToObject("Edge", _spin, Mats.Lit("gold", null, Color.white, pitGlow: 0.35f, rim: 1.2f));
             var h = new MeshKit();
             h.Card(0.2f, 0.2f, Vector2.zero, Vector2.one, true);
-            h.ToObject("Halo", transform, Mats.Fx("tokenhalo", new Color(1f, 0.80f, 0.42f, 0.40f), additive: true, soft: 1f));
+            h.ToObject("Halo", transform, Mats.Fx("tokenhalo", new Color(1f, 0.80f, 0.42f, 0.20f), additive: true, soft: 1f));
             transform.localScale = Vector3.zero;
         }
 
