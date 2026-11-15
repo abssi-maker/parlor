@@ -47,6 +47,8 @@ namespace Parlor.Quest
             _app.SavedStage = () => anchor.Saved;
             _app.SavedStageSettled = () => anchor.Settled;
             _app.StagePlaced = anchor.Lock;
+            _passthrough = Rig.GetComponent<OVRPassthroughLayer>();
+            _app.HouseLights = level => _lightsTarget = Mathf.Clamp01(level);
 
             if (!Application.isEditor)
             {
@@ -54,6 +56,21 @@ namespace Parlor.Quest
                 OVRManager.VrFocusLost += Pause; OVRManager.VrFocusAcquired += Resume;
                 OVRManager.InputFocusLost += Pause; OVRManager.InputFocusAcquired += Resume;
             }
+        }
+
+        // House lights: the real room dims and warms, slowly, like an auditorium. Applied only when it changes.
+        OVRPassthroughLayer _passthrough;
+        float _lights = 1f, _lightsTarget = 1f, _lightsApplied = -1f;
+
+        void Update()
+        {
+            if (!_passthrough) return;
+            _lights = Mathf.MoveTowards(_lights, _lightsTarget, Time.deltaTime * 0.45f);
+            if (Mathf.Abs(_lights - _lightsApplied) < 0.004f) return;
+            _lightsApplied = _lights;
+            float dark = 1f - _lights;
+            if (dark < 0.004f) _passthrough.DisableColorMap();
+            else _passthrough.SetBrightnessContrastSaturation(-0.42f * dark, 0.10f * dark, -0.20f * dark);
         }
 
         void Pause() { if (_app) _app.SetPaused(true); }

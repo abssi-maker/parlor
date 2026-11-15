@@ -45,6 +45,11 @@ namespace Parlor
         public Func<IEnumerator> PlaceStage;         // provided by StagePlacer; fills Site and positions Stage
         public Action<int, int> NightCompleted;      // (night, card face) → persistence
         public Action DebugGesture;                  // hidden: 3 s pinch on the Encore token
+        /// <summary>
+        /// House lights: 1 = the user's room as it is, 0 = as dark as the show ever makes it. The Quest layer dims
+        /// and warms the passthrough image to match, so the real room goes down like an auditorium when he appears.
+        /// </summary>
+        public Action<float> HouseLights;
 
         public ShowModel Model { get; private set; }
         public NightProgram Night { get; private set; }
@@ -158,6 +163,7 @@ namespace Parlor
         void EnterCanonical(ShowState state)
         {
             bool onStage = state != ShowState.Placement && state != ShowState.Arrival;
+            HouseLights?.Invoke(state == ShowState.Placement ? 1f : state == ShowState.Encore ? 0.8f : state == ShowState.CurtainCall ? 0.3f : 0.5f);
             Portal.transform.localPosition = _portalHome;
             Portal.SetWiden(1f);
             Portal.SetOpen(onStage ? 1f : 0f);

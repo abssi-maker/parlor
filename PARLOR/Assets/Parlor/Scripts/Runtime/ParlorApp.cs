@@ -57,6 +57,8 @@ namespace Parlor
         /// <summary>Called once the stage has a pose (the Quest layer locks it with a spatial anchor).</summary>
         public Action<Transform, StageSite> StagePlaced;
         /// <summary>Last session's stage pose from a saved spatial anchor, if one was found (Quest layer).</summary>
+        /// <summary>Room brightness requested by the show, 0..1 (Quest layer: passthrough styling).</summary>
+        public Action<float> HouseLights;
         public Func<Pose?> SavedStage;
         public Func<bool> SavedStageSettled;
 
@@ -112,6 +114,7 @@ namespace Parlor
             Director.Autopilot = Options.Autopilot;
             Director.NightCompleted = NightStore.CompleteNight;
             Director.DebugGesture = OnDebugGesture;
+            Director.HouseLights = level => HouseLights?.Invoke(level);
 
             int night = Options.Night > 0 ? Options.Night : NightStore.CurrentNight;
             Director.Init(night);
@@ -155,6 +158,7 @@ namespace Parlor
 
         void OnDestroy()
         {
+            HouseLights?.Invoke(1f);
             if (Instance == this) Instance = null;
             Time.timeScale = 1f;
             Mats.ClearCache();
