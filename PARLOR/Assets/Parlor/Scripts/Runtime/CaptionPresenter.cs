@@ -10,8 +10,8 @@ namespace Parlor
     /// </summary>
     public sealed class CaptionPresenter : MonoBehaviour
     {
-        public const float MaxWidth = 0.34f;
-        const float LineHeight = 0.0165f;   // about 1.2 degrees at stage distance
+        public const float MaxWidth = 0.40f;
+        const float LineHeight = 0.024f;    // about 1.9 degrees at stage distance: readable without leaning in
 
         TextMeshPro _text;
         Transform _panel;
@@ -52,8 +52,8 @@ namespace Parlor
             _text.textWrappingMode = TextWrappingModes.Normal;
             _text.overflowMode = TextOverflowModes.Overflow;
             _text.color = Mats.Cream;
-            _text.fontSize = 0.20f;                      // world units: TMP font size 1 = 0.1 m line at scale 1
-            _text.rectTransform.sizeDelta = new Vector2(MaxWidth, 0.06f);
+            _text.fontSize = 0.29f;                      // world units: TMP font size 1 = 0.1 m line at scale 1
+            _text.rectTransform.sizeDelta = new Vector2(MaxWidth, 0.08f);
             _text.sortingOrder = 30;
             _text.text = "";
             var r = _text.GetComponent<Renderer>();

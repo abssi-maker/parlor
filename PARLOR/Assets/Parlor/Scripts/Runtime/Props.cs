@@ -15,7 +15,7 @@ namespace Parlor
         public static readonly Vector3 Case = new Vector3(0.125f, 0f, -0.205f);
         public static readonly Vector3 CardRowCentre = new Vector3(0f, 0.145f, 0.13f);
         public const float CardSpacing = 0.165f;
-        public static readonly Vector3 Caption = new Vector3(0f, 0.222f, 0.17f);
+        public static readonly Vector3 Caption = new Vector3(0f, 0.228f, 0.13f);   // just above the card row and the magician, in the same glance
         public static readonly Vector3 Encore = new Vector3(0f, 0.12f, -0.17f);
         public static readonly Vector3 ExpectedEye = new Vector3(0f, 0.40f, -0.57f);
         public const float Reach = 0.61f;
@@ -150,9 +150,15 @@ namespace Parlor
         void Build()
         {
             FaceUv(Face, out var uvMin, out var uvMax);
+            // The atlas cells are square and a card is portrait: the pictogram keeps its proportions on a square in the
+            // middle of a cream card with a gold border, so it is never stretched.
+            var paper = new MeshKit();
+            paper.Tint(Mats.Gold).Card(Width, Height, Vector2.zero, Vector2.one);
+            paper.Tint(Mats.Cream).At(new Vector3(0, 0, -0.0002f)).Card(Width - 0.005f, Height - 0.005f, Vector2.zero, Vector2.one);
+            paper.ToObject("Paper", transform, Mats.Lit("cardpaper", null, Color.white, rim: 0.05f, unlit: 0.35f));
             var f = new MeshKit();
-            f.Tint(Color.white).Card(Width, Height, uvMin, uvMax);
-            _face = f.ToObject("Face", transform, Mats.Lit("cards", "cards", Color.white, rim: 0.05f, unlit: 0.25f)).GetComponent<Renderer>();
+            f.Tint(Color.white).At(new Vector3(0, 0, -0.0004f)).Card(Width - 0.008f, Width - 0.008f, uvMin, uvMax);
+            _face = f.ToObject("Face", transform, Mats.Lit("cards", "cards", Color.white, rim: 0.05f, unlit: 0.35f)).GetComponent<Renderer>();
 
             var b = new MeshKit();
             b.Tint(Color.white).At(new Vector3(0, 0, 0.0006f), Quaternion.Euler(0, 180, 0)).Card(Width, Height, Vector2.zero, Vector2.one);

@@ -31,7 +31,9 @@ namespace Parlor
         public TheatreBuilder.Theatre Theatre { get; private set; }
         public Transform Lift => Theatre.Lift;
         /// <summary>Lift height in stage space: 0 = flush with the table top, -PitDepth = down on the stage.</summary>
-        public float LiftY { get => Theatre.Lift.localPosition.y; set => Theatre.Lift.localPosition = new Vector3(0, value, 0); }
+        public float LiftY { get => Theatre.Lift.localPosition.y; set => Theatre.Lift.localPosition = new Vector3(0, value, -LeanAway * value); }
+        /// <summary>How far the shaft leans away from the user per metre of depth (see TheatreBuilder.Lean).</summary>
+        public float LeanAway { get; private set; }
 
         Transform _rim, _leafL, _leafR, _table;
         Renderer _spill, _spot;
@@ -60,15 +62,16 @@ namespace Parlor
         /// Builds the portal. maxHalf is how much table there is around the stage origin (from the table's
         /// PlaneRect); the opening shrinks to fit small tables and the finale widening is limited to match.
         /// </summary>
-        public void Build(Vector2 maxHalf, bool virtualTable)
+        public void Build(Vector2 maxHalf, bool virtualTable, float leanAway = 0f)
         {
+            LeanAway = leanAway;
             _mpb = new MaterialPropertyBlock();
             float fit = Mathf.Min(1f, Mathf.Min(maxHalf.x / (DefaultHalfSize.x + 0.03f), maxHalf.y / (DefaultHalfSize.y + 0.03f)));
             fit = Mathf.Max(fit, MinHalf / DefaultHalfSize.y);
             FullHalfSize = DefaultHalfSize * fit;
             MaxWiden = Mathf.Clamp(Mathf.Min(maxHalf.x / FullHalfSize.x, maxHalf.y / FullHalfSize.y) * 0.92f, 1f, 1.35f);
 
-            Theatre = TheatreBuilder.Build(transform);
+            Theatre = TheatreBuilder.Build(transform, leanAway);
             BuildRim();
             BuildLeaves();
             BuildLight();

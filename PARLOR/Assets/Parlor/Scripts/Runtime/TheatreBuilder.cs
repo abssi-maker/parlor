@@ -29,7 +29,35 @@ namespace Parlor
             public Renderer[] GlowRenderers;
         }
 
-        public static Theatre Build(Transform stage)
+        /// <summary>
+        /// Leans the whole shaft away from the user: a point at depth d moves d × lean further from them, while every
+        /// floor stays level and everything upright stays upright. Seen from a seat, a vertical shaft under a small
+        /// opening only ever shows its far wall; leaning it along the line of sight puts the stage, the magician and
+        /// the balconies in view, like looking down from the gods of a real opera house. Lean 0 = straight down.
+        /// </summary>
+        static void Lean(Transform root, float lean)
+        {
+            if (lean <= 0.001f) return;
+            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                // Children of the lift are leaned in the lift's own frame (the lift itself slides along the lean).
+                Transform frame = root;
+                for (Transform t = mf.transform; t && t != root; t = t.parent) if (t.name == "Lift") { frame = t; break; }
+                Matrix4x4 toFrame = frame.worldToLocalMatrix * mf.transform.localToWorldMatrix, back = toFrame.inverse;
+                var mesh = mf.sharedMesh;
+                var v = mesh.vertices;
+                for (int i = 0; i < v.Length; i++)
+                {
+                    Vector3 p = toFrame.MultiplyPoint3x4(v[i]);
+                    p.z -= lean * p.y;
+                    v[i] = back.MultiplyPoint3x4(p);
+                }
+                mesh.vertices = v;
+                mesh.RecalculateBounds();
+            }
+        }
+
+        public static Theatre Build(Transform stage, float lean = 0f)
         {
             var t = new Theatre();
             var root = new GameObject("Theatre").transform;
@@ -45,6 +73,7 @@ namespace Parlor
             t.GlowRenderers = BuildLights(root);
             t.PosterRenderer = BuildPosters(root);
             t.Lift = BuildLift(root);
+            Lean(root, lean);
             return t;
         }
 

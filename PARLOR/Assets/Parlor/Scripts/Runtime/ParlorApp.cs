@@ -81,7 +81,11 @@ namespace Parlor
             portalGo.transform.SetParent(Stage, false);
             var portal = portalGo.AddComponent<TablePortal>();
             Rect r = site.TableRect;
-            portal.Build(new Vector2(Mathf.Min(-r.xMin, r.xMax), Mathf.Min(-r.yMin, r.yMax)), site.Tier == 3);
+            // The shaft leans along the user's line of sight from where they sit now (clamped: a user standing right
+            // over the table still gets a near-vertical shaft, a user far back does not get an absurd one).
+            Vector3 eye = Stage.InverseTransformPoint(Head.Head.position);
+            float lean = eye.y > 0.15f ? Mathf.Clamp(-eye.z / eye.y * 0.92f, 0.25f, 1.30f) : 1.0f;
+            portal.Build(new Vector2(Mathf.Min(-r.xMin, r.xMax), Mathf.Min(-r.yMin, r.yMax)), site.Tier == 3, lean);
 
             Director = Stage.gameObject.AddComponent<ShowDirector>();
             Director.Stage = Stage;

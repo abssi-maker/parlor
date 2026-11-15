@@ -90,6 +90,22 @@ def main():
                 import subprocess, os
                 r = subprocess.run(["screencapture", "-x", "-o", "-l", os.environ.get("XRSIM_WINDOW", "0"), rest.strip()], capture_output=True, text=True)
                 print("shot =>", rest.strip() if r.returncode == 0 else "FAILED " + r.stderr[:200], flush=True); continue
+            if name in ("hand", "handstate"):
+                import subprocess
+                def ev(code):
+                    r = subprocess.run(["unity", "command", "script", "eval", "--timeout", "60", "--code", code], capture_output=True, text=True)
+                    return (r.stdout.strip().splitlines() or [""])[-1]
+                if name == "handstate": print("hands =>", ev("return Parlor.DebugSeat.Hands();")[:500], flush=True); continue
+                # hand <left|right> <gesture> [@point] [json of extra arguments]
+                parts = rest.split(None, 3)
+                args = {"hand": parts[0], "gesture": parts[1]}
+                extra = parts[2:]
+                if extra and extra[0].startswith("@"):
+                    xyz = ev('return Parlor.DebugSeat.OpenXrPoint("%s");' % extra[0][1:]).split()
+                    if len(xyz) != 3: print("hand => no point", extra[0], flush=True); continue
+                    args["target"] = [float(v) for v in xyz]; extra = extra[1:]
+                if extra: args.update(json.loads(" ".join(extra)))
+                print("hand", parts[0], parts[1], "=>", s.call("openxr_hand_gesture", args).replace("\n", " ")[:300], flush=True); continue
             if name == "seat":   # seat [index] [pitch]: sit the simulated head at a table of the loaded room
                 import subprocess
                 parts = rest.split(); idx = parts[0] if parts else "0"; pitch = parts[1] if len(parts) > 1 else "32"

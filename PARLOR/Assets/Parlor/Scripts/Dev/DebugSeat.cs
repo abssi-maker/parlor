@@ -42,6 +42,52 @@ namespace Parlor
             return string.Format(c, "{0:F3} {1:F3} {2:F3} {3:F4} {4:F4} {5:F4} {6:F4} | table {7} m at height {8:F2} m",
                 eye.x, eye.y, -eye.z, -look.x, -look.y, look.z, look.w, table.Size.ToString("F2"), table.Pose.position.y);
         }
+
+        /// <summary>"x y z" in OpenXR conventions for a named point of the running show (simulated-hand targets).</summary>
+        public static string OpenXrPoint(string name)
+        {
+            var app = ParlorApp.Instance;
+            if (!app || !app.Director) return "";
+            var d = app.Director; Transform st = app.Stage;
+            Vector3 p;
+            switch (name)
+            {
+                case "coin": p = d.Coin.transform.position; break;
+                case "aboveCoin": p = d.Coin.transform.position + st.up * 0.10f; break;
+                case "place": p = st.TransformPoint(new Vector3(0.02f, 0.012f, -0.15f)); break;
+                case "abovePlace": p = st.TransformPoint(new Vector3(0.02f, 0.10f, -0.15f)); break;
+                case "palm": p = st.TransformPoint(new Vector3(0.0f, 0.10f, -0.22f)); break;
+                case "case": p = d.Case.CoverPoint + st.up * 0.05f; break;
+                case "aboveCase": p = d.Case.CoverPoint + st.up * 0.26f; break;
+                case "token": p = d.Token.transform.position; break;
+                case "beforeToken": p = d.Token.transform.position - st.forward * 0.08f; break;
+                case "card0": case "card1": case "card2":
+                    p = st.TransformPoint(Layout.CardRowCentre + Vector3.right * ((name[4] - '1') * Layout.CardSpacing)); break;
+                case "restL": p = st.TransformPoint(new Vector3(-0.20f, 0.10f, -0.36f)); break;
+                default: p = st.TransformPoint(new Vector3(0.20f, 0.10f, -0.36f)); break;   // "rest"
+            }
+            return string.Format(CultureInfo.InvariantCulture, "{0:F3} {1:F3} {2:F3}", p.x, p.y, -p.z);
+        }
+
+        /// <summary>What the show currently sees of each hand, for calibrating simulated poses.</summary>
+        public static string Hands()
+        {
+            var app = ParlorApp.Instance;
+            if (!app) return "";
+            var sb = new System.Text.StringBuilder();
+            foreach (Handed h in new[] { Handed.Left, Handed.Right })
+            {
+                var s = app.Hands.Get(h);
+                sb.Append(h + ": tracked=" + s.Tracked);
+                if (s.Tracked)
+                    sb.Append(" palm=" + s.PalmPosition.ToString("F2") + " normal.up=" + Vector3.Dot(s.PalmNormal, Vector3.up).ToString("F2")
+                              + " curl=" + s.Curl.ToString("F2") + " pinch=" + s.Pinch.ToString("F2")
+                              + " palmUpOpen=" + PoseMath.PalmUpOpen(s) + " fist=" + PoseMath.Fist(s) + " flatDown=" + PoseMath.PalmDownFlat(s));
+                sb.Append(" | ");
+            }
+            if (app.Director) sb.Append("gate=" + app.Director.ActiveGateName + " beat=" + app.Director.Model.State);
+            return sb.ToString();
+        }
     }
 }
 #endif

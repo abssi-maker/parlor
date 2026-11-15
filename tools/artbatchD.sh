@@ -1,0 +1,4 @@
+#!/bin/zsh
+T=/Users/mac/local/internal/meta/XR/repo/tools/artgen.sh
+$T cards "a sheet of 9 playing card faces in a 3x3 grid with even spacing and no gaps between cells, each cell one complete portrait card on cream paper with a thin gold border: each card shows ONE large bold central pictogram in burgundy or black with gold accents, all nine different and instantly distinguishable at tiny size: a heart, a spade, a diamond, a club, a crown, a five-pointed star, a crescent moon, a key, a rose. Vintage theatrical style, flat front-on, evenly lit, 1024x1024, no numbers, no letters"
+$T poster "a vintage Victorian magic-show theatre poster, portrait: a dapper magician in top hat and tailcoat with curled moustache presenting a glowing gold coin, ornate gold border, deep burgundy background, purely pictorial with blank ornamental banners, 512x768"

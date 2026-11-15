@@ -31,6 +31,17 @@ namespace Parlor.EditorTools
             return d;
         }
 
+        /// <summary>
+        /// Headless entry point: Unity -batchmode -projectPath PARLOR -executeMethod Parlor.EditorTools.ParlorBuild.AndroidBatch
+        /// Batch mode cannot be blocked by an Editor pop-up. Exit code 0 only when the APK was built.
+        /// </summary>
+        public static void AndroidBatch()
+        {
+            string result = Android();
+            Debug.Log("[PARLOR BUILD] " + result);
+            EditorApplication.Exit(result.StartsWith("result=Succeeded") ? 0 : 1);
+        }
+
         [MenuItem("PARLOR/Build Android APK")]
         public static string Android()
         {

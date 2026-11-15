@@ -1,0 +1,3 @@
+/Users/mac/local/internal/meta/XR/repo/PARLOR/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/CMakeLists.txt
+/Users/mac/local/internal/meta/XR/repo/PARLOR/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/FramePacing/CMakeLists.txt
+/Users/mac/local/internal/meta/XR/repo/PARLOR/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/CMakeLists.txt
