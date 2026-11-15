@@ -16,7 +16,8 @@ namespace Parlor
     /// </summary>
     public sealed class TablePortal : MonoBehaviour
     {
-        public static readonly Vector2 DefaultHalfSize = new Vector2(0.15f, 0.11f);
+        // 42 × 31 cm on a table with room for it: big enough to read as a hole in the table, not a picture set into it.
+        public static readonly Vector2 DefaultHalfSize = new Vector2(0.21f, 0.155f);
         public const float MinHalf = 0.07f;
 
         public Vector2 FullHalfSize { get; private set; } = DefaultHalfSize;

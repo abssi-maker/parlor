@@ -516,6 +516,10 @@ namespace Parlor
             Note("chosen card slot " + pick + " (face " + Night.Cards[pick] + ")");
 
             Magician.Celebrate();
+            // He has it: the three cards answer together (never singling out the chosen one) so the user knows the
+            // look was read.
+            for (int ci = 0; ci < 3; ci++) Sparkles.Burst(_sparkle, _cards[ci].transform.position, 9, 0.07f);
+            Sfx("shimmer", _cards[1].transform.position, 0.5f, 1.2f);
             SayNow("gaze.got");
             // shuffle: the cards swap places, then sink back into the case
             for (int s = 0; s < 3; s++)
@@ -967,9 +971,20 @@ namespace Parlor
             {
                 SayNow("finale.lift");
                 var lift = new BeatGate(4f, 8f, 12f, 0.2f);
+                // "Now lift": a small lift counts. The hand has lifted when it is 6 cm higher than where it covered the
+                // case, or no longer over the case at all (moved away, turned over, or lost).
+                float coveredAt = Vector3.Dot(found.PalmPosition - Case.CoverPoint, up);
+                Handed coverHand = which;
+                System.Func<float, bool> lifted = rise =>
+                {
+                    var hand = Hands.Get(coverHand);
+                    if (!hand.Tracked) return true;
+                    if (Vector3.Dot(hand.PalmPosition - Case.CoverPoint, up) - coveredAt > rise) return true;
+                    return !PoseMath.CoversPoint(hand, Case.CoverPoint, up, VelvetCase.CoverRadius, VelvetCase.CoverHeight, true);
+                };
                 yield return RunGate("finale.lift", lift,
-                    () => !Hands.TryFind(h => PoseMath.CoversPoint(h, Case.CoverPoint, up, VelvetCase.CoverRadius, VelvetCase.CoverHeight, true), out found, out which),
-                    () => !Hands.TryFind(h => PoseMath.CoversPoint(h, Case.CoverPoint, up, VelvetCase.CoverRadius, VelvetCase.CoverHeight), out found, out which),
+                    () => lifted(0.06f),
+                    () => lifted(0.04f),
                     () => SayNow("finale.lift"),
                     needsHands: false);
             }

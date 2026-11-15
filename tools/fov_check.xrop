@@ -1,0 +1,10 @@
+seat 0 32
+sleep 1
+eval Parlor.ParlorApp.Instance.Replace(); return "replaced";
+until 20 placed: tier
+hand right open @rest
+hand left open @restL
+until 40 beat GazeCardPick
+sleep 4
+openxr_capture_composited_image {"eye":"left"} --out /Users/mac/local/internal/meta/XR/repo/Captures/fov_gaze.jpg
+openxr_get_system_info {}

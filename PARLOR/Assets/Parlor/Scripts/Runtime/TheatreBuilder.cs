@@ -12,7 +12,7 @@ namespace Parlor
     /// </summary>
     public static class TheatreBuilder
     {
-        public const float RimDepth = 0.025f;       // the table's visible thickness along the cut
+        public const float RimDepth = 0.040f;       // the table's visible thickness along the cut
         public const float PitDepth = 1.00f;        // stage floor is this far below the table
         public const float PitRadius = 0.44f;
         public const float StageRadius = 0.27f;
