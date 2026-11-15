@@ -31,7 +31,33 @@ namespace Parlor
         public TheatreBuilder.Theatre Theatre { get; private set; }
         public Transform Lift => Theatre.Lift;
         /// <summary>Lift height in stage space: 0 = flush with the table top, -PitDepth = down on the stage.</summary>
-        public float LiftY { get => Theatre.Lift.localPosition.y; set => Theatre.Lift.localPosition = new Vector3(0, value, -LeanAway * value); }
+        public float LiftY { get => Theatre.Lift.localPosition.y; set { Theatre.Lift.localPosition = new Vector3(-_aim.x * value, value, -_aim.y * value); FoldBackdrop(value); } }
+        Transform _backdrop;
+        void FoldBackdrop(float liftY)
+        {
+            if (!_backdrop) _backdrop = Theatre.Lift.Find("NoLean_Backdrop");
+            if (!_backdrop) return;
+            // fully up below 30 cm of depth, flat by the time the stage reaches the table
+            float up = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-0.06f, -0.30f, liftY));
+            _backdrop.localScale = new Vector3(1f, Mathf.Max(0.001f, up), 1f);
+            _backdrop.gameObject.SetActive(up > 0.01f);
+        }
+        Vector2 _aim;   // how far the lift slides sideways (x) and away (y) per metre of depth
+
+        /// <summary>
+        /// Lines the lift's travel up with the straight line from the user's eye through the middle of the opening, so
+        /// that wherever the trapdoor has opened on the table, the magician down on the lift is in the middle of
+        /// what the user can see. Call while the lift is at the top or out of sight.
+        /// </summary>
+        public void AimLiftAt(Vector3 eyeWorld)
+        {
+            Vector3 e = transform.InverseTransformPoint(eyeWorld);
+            Vector2 a = e.y > 0.12f ? new Vector2(-e.x, -e.z) / e.y : new Vector2(0, LeanAway);
+            a.x = Mathf.Clamp(a.x, -0.5f, 0.5f);
+            a.y = Mathf.Clamp(a.y, LeanAway - 0.45f, LeanAway + 0.25f);   // never out through the shaft wall
+            _aim = a;
+            LiftY = LiftY;
+        }
         /// <summary>How far the shaft leans away from the user per metre of depth (see TheatreBuilder.Lean).</summary>
         public float LeanAway { get; private set; }
 
@@ -64,7 +90,7 @@ namespace Parlor
         /// </summary>
         public void Build(Vector2 maxHalf, bool virtualTable, float leanAway = 0f)
         {
-            LeanAway = leanAway;
+            LeanAway = leanAway; _aim = new Vector2(0, leanAway);
             _mpb = new MaterialPropertyBlock();
             float fit = Mathf.Min(1f, Mathf.Min(maxHalf.x / (DefaultHalfSize.x + 0.03f), maxHalf.y / (DefaultHalfSize.y + 0.03f)));
             fit = Mathf.Max(fit, MinHalf / DefaultHalfSize.y);

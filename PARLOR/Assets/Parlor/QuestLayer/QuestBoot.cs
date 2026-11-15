@@ -41,7 +41,12 @@ namespace Parlor.Quest
             input.LeftSkeleton = LeftSkeleton; input.RightSkeleton = RightSkeleton;
             var room = gameObject.AddComponent<QuestRoom>();
 
+            var anchor = gameObject.AddComponent<QuestAnchor>();
+
             _app = ParlorApp.Launch(input, input, room);
+            _app.SavedStage = () => anchor.Saved;
+            _app.SavedStageSettled = () => anchor.Settled;
+            _app.StagePlaced = anchor.Lock;
 
             if (!Application.isEditor)
             {

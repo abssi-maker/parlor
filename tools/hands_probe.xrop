@@ -1,0 +1,24 @@
+seat 0 32
+sleep 1
+eval Parlor.NightStore.ResetAll(); Parlor.ParlorApp.Instance.Replace(); return "replaced";
+until 20 placed: tier
+hand right open @palm {"wrist_orientation":[0,0,0,1]}
+handstate
+hand right open @palm {"wrist_orientation":[0.7071,0,0,0.7071]}
+handstate
+hand right open @palm {"wrist_orientation":[-0.7071,0,0,0.7071]}
+handstate
+hand right open @palm {"wrist_orientation":[0,0,1,0]}
+handstate
+hand right open @palm {"wrist_orientation":[1,0,0,0]}
+handstate
+hand right open @palm {"wrist_orientation":[0,0,0.7071,0.7071]}
+handstate
+hand right open @palm {"wrist_orientation":[0,0,-0.7071,0.7071]}
+handstate
+hand right open @palm {"wrist_orientation":[0,1,0,0]}
+handstate
+hand right fist
+handstate
+hand right open
+handstate

@@ -38,7 +38,9 @@ namespace Parlor
         void Build()
         {
             _spatializer = !string.IsNullOrEmpty(AudioSettings.GetSpatializerPluginName());
-            foreach (var c in Resources.LoadAll<AudioClip>("Audio")) _clips[c.name] = c;
+            // Clips load on first use (74 clips loaded up front cost seconds of start-up). Only what the arrival needs
+            // is warmed here, so the first knock, creak and greeting are never late.
+            foreach (var n in new[] { "music_loop", "whoosh", "trap_creak", "trap_clack", "knock", "vo_arrive_hello", "vo_return_hello", "vo_arrive_hands" }) Clip(n);
 
             _music = NewSource("Music");
             _music.loop = true; _music.volume = 0f;
@@ -66,7 +68,12 @@ namespace Parlor
             return s;
         }
 
-        public AudioClip Clip(string name) => name != null && _clips.TryGetValue(name, out var c) ? c : null;
+        public AudioClip Clip(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            if (!_clips.TryGetValue(name, out var c)) { c = Resources.Load<AudioClip>("Audio/" + name); _clips[name] = c; }
+            return c;
+        }
         public bool Has(string name) => Clip(name) != null;
 
         /// <summary>One-shot at a world position.</summary>

@@ -56,6 +56,9 @@ namespace Parlor
         public bool Ready { get; private set; }
         /// <summary>Called once the stage has a pose (the Quest layer locks it with a spatial anchor).</summary>
         public Action<Transform, StageSite> StagePlaced;
+        /// <summary>Last session's stage pose from a saved spatial anchor, if one was found (Quest layer).</summary>
+        public Func<Pose?> SavedStage;
+        public Func<bool> SavedStageSettled;
 
         public static ParlorApp Launch(IHandSource hands, IHeadSource head, IRoomSource room, ParlorOptions options = null)
         {
@@ -74,7 +77,10 @@ namespace Parlor
             Stage = new GameObject("Stage").transform;
             Stage.SetParent(transform, false);
             var site = new StageSite();
-            yield return StagePlacer.Place(Stage, site, Room, Head, Options.Tier);
+            // give a saved anchor a moment to be found again (only when there is one to look for)
+            if (SavedStageSettled != null && !string.IsNullOrEmpty(NightStore.AnchorUuid))
+                while (!SavedStageSettled() && Time.realtimeSinceStartup - t0 < 2.5f) yield return null;
+            yield return StagePlacer.Place(Stage, site, Room, Head, Options.Tier, SavedStage != null ? SavedStage() : null);
             StagePlaced?.Invoke(Stage, site);
 
             var portalGo = new GameObject("Portal");

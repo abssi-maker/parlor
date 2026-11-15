@@ -13,7 +13,8 @@ namespace Parlor
         const float EnterCos = 0.50f;   // within 60 degrees
         const float StayCos = 0.26f;    // within 75 degrees
         const float OpenCurlEnter = 0.45f, OpenCurlStay = 0.60f;
-        const float FistCurlEnter = 0.62f, FistCurlStay = 0.48f;
+        // A pointing hand (three fingers curled) measures about 0.75, so a fist must be clearly above that to start.
+        const float FistCurlEnter = 0.82f, FistCurlStay = 0.55f;
 
         public static bool PalmUpOpen(in HandSnapshot h, bool stay = false) =>
             h.Tracked && Vector3.Dot(h.PalmNormal, Vector3.up) > (stay ? StayCos : EnterCos)

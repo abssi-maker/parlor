@@ -14,7 +14,8 @@ namespace Parlor
     /// </summary>
     public sealed class MagicianActor : MonoBehaviour
     {
-        public const float Height = 0.18f;
+        public const float Scale = 1.35f;
+        public const float Height = 0.18f * Scale;
 
         enum B { Root, Hips, Chest, Head, Hat, Moustache, Lids, ArmR, ForeR, HandR, ArmL, ForeL, HandL, LegR, LegL, Wand, Count }
 
@@ -44,6 +45,9 @@ namespace Parlor
         {
             var go = new GameObject("Magician");
             go.transform.SetParent(parent, false);
+            // Built at 18 cm, shown at 24 cm: large enough to read his face from a seat, still small enough to stand
+            // inside the trapdoor opening.
+            go.transform.localScale = Vector3.one * Scale;
             var m = go.AddComponent<MagicianActor>();
             m.Build();
             return m;

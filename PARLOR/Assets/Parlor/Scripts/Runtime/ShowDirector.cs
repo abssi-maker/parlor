@@ -69,7 +69,7 @@ namespace Parlor
         const float LiftTop = -0.004f;        // just under the table plane, so the stage floor is clipped to the opening
         float LiftBottom => -StageDepth;
         /// <summary>How far down the lift carries him for the catch: deep enough to read as "far below", near enough to see his face.</summary>
-        public const float StageDepth = 0.62f;
+        public const float StageDepth = 0.50f;
 
         // ------------------------------------------------------------------ lifecycle
 
@@ -257,6 +257,7 @@ namespace Parlor
         {
             ActiveGate = gate; ActiveGateName = name;
             float opened = Time.time;
+            Note("gate " + name + " open");
             while (!gate.Done)
             {
                 bool input = !needsHands || Hands.AnyTracked();
@@ -278,6 +279,17 @@ namespace Parlor
                 if (!gate.Done) yield return null;
             }
             Note("gate " + name + " → " + gate.Result);
+            // Every recognised gesture is answered at once, by sound and by light on the hand that made it, so the
+            // user never wonders whether the show saw them.
+            if (needsHands && (gate.Result == GateEvent.Success || gate.Result == GateEvent.AltSuccess))
+                for (int h = 0; h < 2; h++)
+                {
+                    var hand = Hands.Get((Handed)h);
+                    if (!hand.Tracked) continue;
+                    Sparkles.Burst(_sparkle, hand.PalmPosition + hand.PalmNormal * 0.02f, 10, 0.08f);
+                    Sfx("tick", hand.PalmPosition, 0.5f, 1.15f);
+                    break;
+                }
             ActiveGate = null; ActiveGateName = "";
         }
 
@@ -678,6 +690,7 @@ namespace Parlor
             }
 
             // --- it opens, and the coin goes through the table -----------------------------
+            Portal.AimLiftAt(Head.Head.position);     // he waits exactly where the user will be able to see him
             Magician.ReachUp();
             Portal.SetSpot(0.5f);
             Sfx("trap_creak", Portal.transform.position, 0.7f, 1.25f);

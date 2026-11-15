@@ -18,7 +18,7 @@ namespace Parlor
         public const float MaxReach = 0.80f;
         const float EdgeMargin = 0.16f;
 
-        public static IEnumerator Place(Transform stage, StageSite site, IRoomSource room, IHeadSource head, int forcedTier = 0)
+        public static IEnumerator Place(Transform stage, StageSite site, IRoomSource room, IHeadSource head, int forcedTier = 0, Pose? savedAnchor = null)
         {
             // Wait briefly for a real head pose and for the room. Never longer: the magician must be on stage in < 10 s.
             float t0 = Time.realtimeSinceStartup;
@@ -51,6 +51,19 @@ namespace Parlor
                     Quaternion inv = Quaternion.Inverse(bestTable.Pose.rotation);
                     NightStore.SaveTableOffset(bestTable.Uuid, inv * (bestPose.position - bestTable.Pose.position),
                                                (inv * bestPose.rotation).eulerAngles.y);
+                    yield break;
+                }
+            }
+            // No table to stand on. If last session's stage anchor is still within reach and level, the floating table
+            // goes back exactly where it was; otherwise it appears in front of the user.
+            if (forcedTier == 0 && savedAnchor.HasValue)
+            {
+                Pose a = savedAnchor.Value;
+                Vector3 flat = Vector3.ProjectOnPlane(a.position - h.position, Vector3.up);
+                float below = h.position.y - a.position.y;
+                if (flat.magnitude < MaxReach + 0.2f && below > 0.12f && below < 1.1f && Vector3.Dot(a.rotation * Vector3.up, Vector3.up) > 0.94f)
+                {
+                    Apply(stage, site, a, new StageSite().TableRect, 3, "", true);
                     yield break;
                 }
             }

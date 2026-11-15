@@ -69,6 +69,20 @@ namespace Parlor
             return string.Format(CultureInfo.InvariantCulture, "{0:F3} {1:F3} {2:F3}", p.x, p.y, -p.z);
         }
 
+        /// <summary>"x y z qx qy qz qw" (OpenXR): the head where it is now, turned to look at a named point.</summary>
+        public static string OpenXrLook(string name)
+        {
+            var app = ParlorApp.Instance;
+            string pt = OpenXrPoint(name);
+            if (pt == "") return "";
+            var c = CultureInfo.InvariantCulture;
+            var n = pt.Split(' ');
+            Vector3 target = new Vector3(float.Parse(n[0], c), float.Parse(n[1], c), -float.Parse(n[2], c));
+            Vector3 eye = app.Head.Head.position;
+            Quaternion q = Quaternion.LookRotation((target - eye).normalized, Vector3.up);
+            return string.Format(c, "{0:F3} {1:F3} {2:F3} {3:F4} {4:F4} {5:F4} {6:F4}", eye.x, eye.y, -eye.z, -q.x, -q.y, q.z, q.w);
+        }
+
         /// <summary>What the show currently sees of each hand, for calibrating simulated poses.</summary>
         public static string Hands()
         {

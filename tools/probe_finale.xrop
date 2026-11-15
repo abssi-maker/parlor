@@ -1,0 +1,21 @@
+seat 0 32
+sleep 1
+eval Parlor.NightStore.ResetAll(); Parlor.ParlorApp.Instance.Replace(); return "replaced";
+until 20 gate finale.cover open
+hand right grab @case
+handstate
+eval var a = Parlor.ParlorApp.Instance; var h = a.Hands.Get(Parlor.Handed.Right); var d = h.PalmPosition - a.Director.Case.CoverPoint; return "palm-cover d=" + d.ToString("F3") + " up=" + UnityEngine.Vector3.Dot(d, a.Stage.up).ToString("F3");
+hand right open
+handstate
+eval var a = Parlor.ParlorApp.Instance; var h = a.Hands.Get(Parlor.Handed.Right); var d = h.PalmPosition - a.Director.Case.CoverPoint; return "palm-cover d=" + d.ToString("F3") + " up=" + UnityEngine.Vector3.Dot(d, a.Stage.up).ToString("F3");
+hand right open @case
+handstate
+eval var a = Parlor.ParlorApp.Instance; var h = a.Hands.Get(Parlor.Handed.Right); var d = h.PalmPosition - a.Director.Case.CoverPoint; return "palm-cover d=" + d.ToString("F3") + " up=" + UnityEngine.Vector3.Dot(d, a.Stage.up).ToString("F3");
+until 25 gate finale.cover →
+hand right open @rest
+until 60 gate curtain.bow open
+eval return "pitch0=" + Parlor.PoseMath.PitchDownDegrees(Parlor.ParlorApp.Instance.Head.Head.rotation).ToString("F1");
+seat 0 55
+sleep 0.6
+eval return "pitch1=" + Parlor.PoseMath.PitchDownDegrees(Parlor.ParlorApp.Instance.Head.Head.rotation).ToString("F1");
+until 12 gate curtain.bow →

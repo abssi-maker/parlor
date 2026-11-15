@@ -42,7 +42,13 @@ namespace Parlor
             {
                 // Children of the lift are leaned in the lift's own frame (the lift itself slides along the lean).
                 Transform frame = root;
-                for (Transform t = mf.transform; t && t != root; t = t.parent) if (t.name == "Lift") { frame = t; break; }
+                bool skip = false;
+                for (Transform t = mf.transform; t && t != root; t = t.parent)
+                {
+                    if (t.name.StartsWith("NoLean")) skip = true;      // upright set pieces riding on the lift
+                    if (t.name == "Lift") { frame = t; break; }
+                }
+                if (skip) continue;
                 Matrix4x4 toFrame = frame.worldToLocalMatrix * mf.transform.localToWorldMatrix, back = toFrame.inverse;
                 var mesh = mf.sharedMesh;
                 var v = mesh.vertices;
@@ -296,6 +302,32 @@ namespace Parlor
             for (int i = 1; i <= 4; i++)
                 col.Tint(Mats.GoldDark).At(Vector3.down * (0.25f * i)).Cylinder(StageRadius - 0.001f, StageRadius - 0.001f, 0.010f, 24, false, false);
             col.ToObject("LiftColumn", lift, Mats.Lit("gold", null, Color.white, pitGlow: 0.35f, rim: 1.2f));
+
+            // His own little proscenium: a half-circle of velvet behind him with a gold pelmet and footlights, so that
+            // from above he is framed by theatre and not by bare floor. It stays down in the pit (TablePortal folds
+            // it away as the lift nears the table).
+            var set = new GameObject("NoLean_Backdrop").transform;
+            set.SetParent(lift, false);
+            var cur = new MeshKit(); var trim = new MeshKit();
+            const int panels = 18; const float r = StageRadius - 0.012f, h = 0.20f, a0 = 20f, a1 = 160f;
+            for (int i = 0; i < panels; i++)
+            {
+                float t0 = Mathf.Lerp(a0, a1, (float)i / panels) * Mathf.Deg2Rad, t1 = Mathf.Lerp(a0, a1, (i + 1f) / panels) * Mathf.Deg2Rad;
+                // folds: alternate panels sit a little further out
+                float r0 = r + (i % 2 == 0 ? 0f : 0.010f), r1 = r + (i % 2 == 0 ? 0.010f : 0f);
+                Vector3 p0 = new Vector3(Mathf.Cos(t0) * r0, 0, Mathf.Sin(t0) * r0), p1 = new Vector3(Mathf.Cos(t1) * r1, 0, Mathf.Sin(t1) * r1);
+                // faces the centre of the stage (and the user beyond it)
+                cur.Tint(i % 2 == 0 ? Color.white : new Color(0.78f, 0.78f, 0.78f)).Quad(p1, p0, p0 + Vector3.up * h, p1 + Vector3.up * h, new Vector2(i * 0.12f, 0), new Vector2((i + 1) * 0.12f, 1f));
+                trim.Tint(Mats.Gold).Quad(p1 + Vector3.up * h, p0 + Vector3.up * h, p0 + Vector3.up * (h + 0.016f), p1 + Vector3.up * (h + 0.016f));
+            }
+            cur.ToObject("Curtain", set, Mats.Lit("velvet", "velvet", Color.white, pitGlow: 0.5f, rim: 0.3f));
+            // footlights along the front edge of the stage
+            for (int i = 0; i < 7; i++)
+            {
+                float t = Mathf.Lerp(205f, 335f, i / 6f) * Mathf.Deg2Rad;
+                trim.Tint(new Color(1.6f, 1.25f, 0.7f)).At(new Vector3(Mathf.Cos(t), 0, Mathf.Sin(t)) * (StageRadius - 0.02f) + Vector3.up * 0.004f).Sphere(0.007f, 6, 4);
+            }
+            trim.ToObject("Trim", set, Mats.Lit("gold", null, Color.white, pitGlow: 0.35f, rim: 1.2f));
             return lift;
         }
     }

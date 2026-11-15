@@ -103,9 +103,21 @@ def main():
                 if extra and extra[0].startswith("@"):
                     xyz = ev('return Parlor.DebugSeat.OpenXrPoint("%s");' % extra[0][1:]).split()
                     if len(xyz) != 3: print("hand => no point", extra[0], flush=True); continue
-                    args["target"] = [float(v) for v in xyz]; extra = extra[1:]
+                    # "open" takes no target: the point becomes the wrist position
+                    args["wrist_position" if parts[1] == "open" else "target"] = [float(v) for v in xyz]; extra = extra[1:]
                 if extra: args.update(json.loads(" ".join(extra)))
                 print("hand", parts[0], parts[1], "=>", s.call("openxr_hand_gesture", args).replace("\n", " ")[:300], flush=True); continue
+            if name == "look":   # look @point [duration]: turn the simulated head towards a named point of the show
+                import subprocess
+                parts = rest.split()
+                r = subprocess.run(["unity", "command", "script", "eval", "--timeout", "60", "--code",
+                                    'return Parlor.DebugSeat.OpenXrLook("%s");' % parts[0].lstrip("@")], capture_output=True, text=True)
+                nums = (r.stdout.strip().splitlines() or [""])[-1].split()
+                if len(nums) != 7: print("look => failed", flush=True); continue
+                v = [float(x) for x in nums]
+                a = {"position": v[:3], "orientation": v[3:]}
+                if len(parts) > 1: a["duration_seconds"] = float(parts[1])
+                print("look", parts[0], "=>", s.call("openxr_set_head_pose", a).replace("\n", " ")[:80], flush=True); continue
             if name == "seat":   # seat [index] [pitch]: sit the simulated head at a table of the loaded room
                 import subprocess
                 parts = rest.split(); idx = parts[0] if parts else "0"; pitch = parts[1] if len(parts) > 1 else "32"
