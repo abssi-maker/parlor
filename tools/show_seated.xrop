@@ -1,0 +1,38 @@
+seat 0 32
+sleep 1.0
+eval Parlor.NightStore.ResetAll(); Parlor.ParlorApp.Instance.Replace(); return "replaced";
+until 20 placed: tier
+sleep 3
+openxr_capture_composited_image {"eye":"left"} --out /Users/mac/local/internal/meta/XR/repo/Captures/sim2_01.jpg
+shot /Users/mac/local/internal/meta/XR/repo/Captures/simwin_01.png
+until 40 beat GazeCardPick
+sleep 3
+openxr_capture_composited_image {"eye":"left"} --out /Users/mac/local/internal/meta/XR/repo/Captures/sim2_02.jpg
+shot /Users/mac/local/internal/meta/XR/repo/Captures/simwin_02.png
+until 40 beat BorrowedCoin
+sleep 7
+openxr_capture_composited_image {"eye":"left"} --out /Users/mac/local/internal/meta/XR/repo/Captures/sim2_03.jpg
+shot /Users/mac/local/internal/meta/XR/repo/Captures/simwin_03.png
+sleep 4
+openxr_capture_composited_image {"eye":"left"} --out /Users/mac/local/internal/meta/XR/repo/Captures/sim2_04.jpg
+shot /Users/mac/local/internal/meta/XR/repo/Captures/simwin_04.png
+sleep 3
+openxr_capture_composited_image {"eye":"left"} --out /Users/mac/local/internal/meta/XR/repo/Captures/sim2_05.jpg
+shot /Users/mac/local/internal/meta/XR/repo/Captures/simwin_05.png
+sleep 3
+openxr_capture_composited_image {"eye":"left"} --out /Users/mac/local/internal/meta/XR/repo/Captures/sim2_06.jpg
+shot /Users/mac/local/internal/meta/XR/repo/Captures/simwin_06.png
+until 60 beat CardFinale
+sleep 8
+openxr_capture_composited_image {"eye":"left"} --out /Users/mac/local/internal/meta/XR/repo/Captures/sim2_07.jpg
+shot /Users/mac/local/internal/meta/XR/repo/Captures/simwin_07.png
+until 60 beat CurtainCall
+sleep 6
+seat 0 4
+sleep 2
+openxr_capture_composited_image {"eye":"left"} --out /Users/mac/local/internal/meta/XR/repo/Captures/sim2_08.jpg
+shot /Users/mac/local/internal/meta/XR/repo/Captures/simwin_08.png
+until 40 beat Encore
+sleep 2
+openxr_capture_composited_image {"eye":"left"} --out /Users/mac/local/internal/meta/XR/repo/Captures/sim2_09.jpg
+shot /Users/mac/local/internal/meta/XR/repo/Captures/simwin_09.png

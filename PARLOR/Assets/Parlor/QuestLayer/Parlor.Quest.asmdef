@@ -1,0 +1,6 @@
+{
+  "name": "Parlor.Quest",
+  "rootNamespace": "Parlor.Quest",
+  "references": ["Parlor", "Oculus.VR", "meta.xr.mrutilitykit"],
+  "autoReferenced": true
+}

@@ -4,6 +4,10 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Parlor.unity
+    guid: 155801d5395d244998b977ab268dd7bb
   m_configObjects:
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 140e73c238b674799b85978ac1051755, type: 2}
     com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 96cff35180abd40819579b8aa771d40d, type: 2}

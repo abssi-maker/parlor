@@ -121,6 +121,20 @@ namespace Parlor
             _lastDebug = Time.unscaledTime;
         }
 
+        /// <summary>
+        /// Tears the stage down and finds it a place again from the user's current pose (recenter, the user moved
+        /// to another seat, or a test moved the simulated head). The night and progress are untouched.
+        /// </summary>
+        public void Replace()
+        {
+            StopAllCoroutines();
+            Ready = false;
+            Time.timeScale = 1f;
+            if (Stage) Destroy(Stage.gameObject);
+            Stage = null; Director = null;
+            StartCoroutine(Start());
+        }
+
         /// <summary>Headset taken off, app paused, or focus lost.</summary>
         public void SetPaused(bool paused) { if (Director) Director.SetPaused(paused); }
 
