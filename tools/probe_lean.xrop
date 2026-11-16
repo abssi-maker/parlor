@@ -1,0 +1,59 @@
+# The whole show performed with simulated hands and head. No autopilot.
+seat 0 32
+sleep 1
+eval Parlor.NightStore.ResetAll(); Parlor.ParlorApp.Instance.Replace(); return "replaced";
+sleep 4
+until 20 placed: tier
+warm
+sleep 2
+hand right open @rest
+hand left open @restL
+until 40 gate arrival.hands →
+until 40 beat GazeCardPick
+sleep 3.5
+look @card2 0.6
+until 30 chosen card
+look @palm 0.6
+until 40 gate coin.pick open
+warm
+sleep 0.5
+hand right pinch @coin
+sleep 0.4
+until 20 gate coin.place open
+sleep 1.0
+hand right open
+hand right open @rest
+until 40 gate coin.place →
+sleep 1.0
+lean 0.28 0.28 0.35 1.2
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_00.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_01.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_02.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_03.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_04.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_05.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_06.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_07.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_08.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_09.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_10.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_11.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_12.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_13.png
+sleep 0.8
+shot /Users/mac/local/internal/meta/XR/repo/Captures/rec/lean_14.png
+seat 0 32

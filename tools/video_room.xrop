@@ -1,0 +1,13 @@
+# Any room: a fresh first night, seated at the best table the room has (or none). Placement, the spotlight finding
+# the table and the magician rising, up to his first request. Used for the four-room montage.
+seat 0 32
+sleep 1
+eval Parlor.NightStore.ResetAll(); Parlor.ParlorApp.Instance.Replace(); return "replaced";
+sleep 4
+until 20 placed: tier
+sleep 1
+hand right open @rest
+hand left open @restL
+until 40 gate arrival.hands →
+sleep 3
+eval return Parlor.DebugSeat.Stats();

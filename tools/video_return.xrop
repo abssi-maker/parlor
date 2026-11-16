@@ -1,0 +1,32 @@
+# Night 2 in the same room: no reset, so the show remembers its spot. Knocks from under the table, the trapdoor
+# reopens where it was, and tonight the coin becomes a bird in the palm. Recorded up to the bird.
+seat 0 32
+sleep 1
+eval Parlor.ParlorApp.Instance.Replace(); return "replaced";
+sleep 4
+until 20 placed: tier
+warm
+sleep 1
+hand right open @rest
+hand left open @restL
+until 40 gate arrival.hands →
+until 40 beat GazeCardPick
+sleep 3.5
+look @card0 0.6
+until 30 chosen card
+look @palm 0.6
+until 40 gate coin.pick open
+warm
+sleep 0.5
+hand right pinch @coin
+sleep 0.4
+until 20 gate coin.place open
+sleep 1.0
+hand right open
+hand right open @rest
+until 40 gate coin.place →
+sleep 12
+until 60 gate palm.offer open
+hand right open @palm {"wrist_orientation":[0,0,1,0]}
+until 20 gate palm.offer →
+sleep 6

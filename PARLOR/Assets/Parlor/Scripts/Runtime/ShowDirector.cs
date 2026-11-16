@@ -713,23 +713,38 @@ namespace Parlor
             Coin.transform.SetParent(Portal.transform, true);
             Vector3 start = Coin.transform.localPosition;
             Vector3 hand = Portal.transform.InverseTransformPoint(Magician.RightHand.position) + Vector3.up * 0.012f;
-            Sparkles.Trail(_sparkle, true, 70f);
+            Sparkles.Trail(_sparkle, true, 120f);
             if (Audio) Audio.PlayFollowing("coin_chime", Coin.transform, 0.9f);
-            const float fall = 1.35f;
+            // hand-authored, not free physics, so he always catches it. Three phases a viewer can follow on video:
+            // it hangs over nothing for a beat (wobbling), drops, then floats the last stretch into his glove.
+            const float hang = 0.45f, fall = 1.75f;
+            Vector3 hangAt = start;
+            for (float e = 0; e < hang; e += Time.deltaTime)
+            {
+                float x = e / hang;
+                Coin.transform.localPosition = hangAt + Vector3.down * (0.006f * x * x);
+                Coin.transform.localRotation = Quaternion.Euler(Mathf.Sin(x * 14f) * 9f * (1f - x * 0.5f), 0, Mathf.Cos(x * 11f) * 7f);
+                _sparkle.transform.position = Coin.transform.position;
+                yield return null;
+            }
+            start = Coin.transform.localPosition;
             for (float e = 0; e < fall; e += Time.deltaTime)
             {
                 float x = e / fall;
-                // hand-authored: accelerating drop, drifting to his hand, tumbling end over end. Not free physics,
-                // so he always catches it.
-                float down = x * x;
-                Vector3 p = new Vector3(Mathf.Lerp(start.x, hand.x, Mathf.SmoothStep(0, 1, x)), Mathf.Lerp(start.y, hand.y, down), Mathf.Lerp(start.z, hand.z, Mathf.SmoothStep(0, 1, x)));
-                p += new Vector3(Mathf.Sin(x * 9f), 0, Mathf.Cos(x * 7f)) * (0.012f * (1f - x));
+                // accelerating drop that eases out over the last third: the catch reads instead of being a blur
+                float down = x < 0.65f ? 0.80f * (x / 0.65f) * (x / 0.65f) : 0.80f + 0.20f * Mathf.Sin((x - 0.65f) / 0.35f * Mathf.PI * 0.5f);
+                float side = Mathf.SmoothStep(0, 1, x);
+                Vector3 p = new Vector3(Mathf.Lerp(start.x, hand.x, side), Mathf.Lerp(start.y, hand.y, down), Mathf.Lerp(start.z, hand.z, side));
+                p += new Vector3(Mathf.Sin(x * 9f), 0, Mathf.Cos(x * 7f)) * (0.014f * (1f - x));
                 Coin.transform.localPosition = p;
-                Coin.transform.localRotation = Quaternion.Euler(x * 1500f, x * 320f, 0);
+                Coin.transform.localRotation = Quaternion.Euler(down * 1260f, x * 320f, 0);
+                // the coin grows a little brighter as it falls into the light
+                Coin.SetGlow(Mathf.Lerp(0.3f, 1f, down));
                 _sparkle.transform.position = Coin.transform.position;
                 if (Audio) Audio.SetFollowDepth(down);
                 yield return null;
             }
+            Coin.SetGlow(0f);
             Sparkles.Trail(_sparkle, false);
             GiveCoinToMagician();
             Sfx("coin_chime_low", Coin.transform.position, 1f);

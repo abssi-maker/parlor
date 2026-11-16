@@ -49,16 +49,39 @@ namespace Parlor
         /// Head pose leaning over the trapdoor (video hero shot): <paramref name="back"/> metres towards the user from the
         /// opening, <paramref name="height"/> above the table, looking at a point <paramref name="lookDepth"/> into the pit.
         /// </summary>
-        public static string OpenXrLean(float back = 0.16f, float height = 0.30f, float lookDepth = 0.45f)
+        public static string OpenXrLean(float back = 0.22f, float height = 0.38f, float lookDepth = 0f)
         {
+            // Measured from where the trapdoor opens for the coin (the "place" point the capture scripts set it down
+            // on), not from the stage origin: a steep look down keeps real tabletop all round the opening in frame.
+            // An earlier shallow lean from the stage origin put the eye past the table's front edge, and the
+            // opening appeared to float over the floor.
             var app = ParlorApp.Instance;
             if (!app || !app.Stage) return "";
             Transform s = app.Stage;
-            Vector3 eye = s.position - s.forward * back + Vector3.up * height;
-            Vector3 target = s.position + s.forward * 0.10f - Vector3.up * lookDepth;
-            Quaternion look = Quaternion.LookRotation(target - eye, s.forward);
+            Vector3 door = s.TransformPoint(new Vector3(0.02f, 0f, -0.15f));
+            Vector3 eye = door - s.forward * back + Vector3.up * height;
+            Vector3 target = door - Vector3.up * lookDepth;
+            Quaternion look = Quaternion.LookRotation(target - eye, Vector3.up);
             var c = CultureInfo.InvariantCulture;
             return string.Format(c, "{0:F3} {1:F3} {2:F3} {3:F4} {4:F4} {5:F4} {6:F4}", eye.x, eye.y, -eye.z, -look.x, -look.y, look.z, look.w);
+        }
+
+        /// <summary>
+        /// Every pose the capture scripts need, in one call (each Editor eval compiles and stalls the Editor for a second,
+        /// which shows as a freeze in a screen recording). Lines: "P name x y z", "S idx pitch pose7", "L name pose7", "N pose7".
+        /// </summary>
+        public static string Warm()
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var n in new[] { "coin", "aboveCoin", "place", "abovePlace", "palm", "case", "caseWrist", "aboveCase", "token",
+                                      "beforeToken", "card0", "card1", "card2", "rest", "restL" })
+                sb.Append("P ").Append(n).Append(' ').Append(OpenXrPoint(n)).Append('\n');
+            foreach (var pitch in new[] { 4, 8, 32, 34 })
+                sb.Append("S 0 ").Append(pitch).Append(' ').Append(OpenXrSeat(0, pitch).Split('|')[0].Trim()).Append('\n');
+            foreach (var n in new[] { "card0", "card1", "card2", "palm" })
+                sb.Append("L ").Append(n).Append(' ').Append(OpenXrLook(n)).Append('\n');
+            sb.Append("N ").Append(OpenXrLean()).Append('\n');
+            return sb.ToString().Replace("\n", " ;; ");
         }
 
         /// <summary>"x y z" in OpenXR conventions for a named point of the running show (simulated-hand targets).</summary>

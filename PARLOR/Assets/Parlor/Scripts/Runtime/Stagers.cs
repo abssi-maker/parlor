@@ -13,7 +13,7 @@ namespace Parlor
     public sealed class WallCurtainStager : MonoBehaviour
     {
         IRoomSource _room;
-        Transform _root, _left, _right, _valance, _boxes;
+        Transform _root, _left, _right, _valance, _boxes, _backdrop, _spot;
         float _shown;
         public bool OnWall { get; private set; }
         public Vector3 Centre => _root ? _root.position : transform.position;
@@ -51,8 +51,10 @@ namespace Parlor
                 if (dist >= best) continue;
                 best = dist;
                 // keep the set inside the wall and inside the field of view at this distance
-                float width = Mathf.Min(w.Size.x, 2f * dist * Mathf.Tan(21f * Mathf.Deg2Rad), 2.6f);
-                float height = Mathf.Min(w.Size.y, 2f * dist * Mathf.Tan(15f * Mathf.Deg2Rad), 1.9f);
+                // the drapes are scenery, not UI: they may fill a wider part of the view than captions do (the
+                // essential part, the boxes and the spotlight, stays in the middle third)
+                float width = Mathf.Min(w.Size.x, 2f * dist * Mathf.Tan(27f * Mathf.Deg2Rad), 3.2f);
+                float height = Mathf.Min(w.Size.y, 2f * dist * Mathf.Tan(19f * Mathf.Deg2Rad), 2.2f);
                 float x = Mathf.Clamp(local.x, -w.Size.x * 0.5f + width * 0.5f, w.Size.x * 0.5f - width * 0.5f);
                 float y = Mathf.Clamp(local.y, -w.Size.y * 0.5f + height * 0.5f, w.Size.y * 0.5f - height * 0.5f);
                 set = new Pose(w.Pose.position + w.Pose.rotation * new Vector3(x, y, 0) + n * 0.03f, Quaternion.LookRotation(-n, Vector3.up));
@@ -94,18 +96,31 @@ namespace Parlor
             _root.SetParent(transform, false);
             _root.SetPositionAndRotation(set.position, set.rotation);
             float w = size.x, h = size.y, top = h * 0.5f;
-            var velvet = Mats.Lit("wallvelvet", "velvet", new Color(1.25f, 0.95f, 0.95f), clip: Mats.ClipNone, rim: 0.35f, unlit: 0.55f, twoSided: true, tiling: new Vector2(2f, 1f));
+            // deep theatre red, mostly lit (an earlier pale-pink version read as a shower curtain on video)
+            // (the velvet texture is already dark red; the rim term on steep folds is what washed it out to grey)
+            var velvet = Mats.Lit("wallvelvet", "velvet", new Color(1.7f, 1.05f, 1.05f), clip: Mats.ClipNone, rim: 0.12f, unlit: 0.45f, twoSided: true, tiling: new Vector2(2f, 1f));
             var gold = Mats.Lit("wallgold", null, Mats.Gold, clip: Mats.ClipNone, rim: 1.1f);
+
+            // A dark stage behind the opening, so the real wall's pictures and sockets do not show through the gap:
+            // the wall becomes a proscenium. It drops with the drapes.
+            var back = new MeshKit();
+            back.Tint(Color.white).At(new Vector3(0, -h * 0.5f, 0.012f)).Card(w * 0.70f, h, new Vector2(0, 0), new Vector2(1.4f, 2f));
+            _backdrop = back.ToObject("Backdrop", _root, Mats.Lit("wallback", "velvet", new Color(0.32f, 0.10f, 0.12f), clip: Mats.ClipNone, rim: 0f, unlit: 0.3f, tiling: new Vector2(2f, 1f))).transform;
+            _backdrop.localPosition = new Vector3(0, top, 0);
+            // a warm spotlight pool on that backdrop, behind the boxes
+            var spot = new MeshKit();
+            spot.Tint(Color.white).At(new Vector3(0, -h * 0.55f, -0.004f)).Card(w * 0.55f, h * 0.70f, Vector2.zero, Vector2.one);
+            _spot = spot.ToObject("Spot", _backdrop, Mats.Fx("wallspot", new Color(1f, 0.74f, 0.42f, 0.42f), additive: true, soft: 1f)).transform;
 
             // Two tied-back drapes hanging from the top, and a scalloped valance with a gold fringe across it.
             var l = new MeshKit();
-            l.Tint(Color.white).Drape(w * 0.42f, h, 5, w * 0.012f, 8, 0.55f, -w * 0.16f, 1.2f, 2f);
+            l.Tint(Color.white).Drape(w * 0.46f, h, 6, w * 0.010f, 8, 0.50f, -w * 0.15f, 1.6f, 2f);
             _left = l.ToObject("DrapeL", _root, velvet).transform;
-            _left.localPosition = new Vector3(-w * 0.29f, top, 0);
+            _left.localPosition = new Vector3(-w * 0.28f, top, -0.004f);
             var r = new MeshKit();
-            r.Tint(Color.white).Drape(w * 0.42f, h, 5, w * 0.012f, 8, 0.55f, w * 0.16f, 1.2f, 2f);
+            r.Tint(Color.white).Drape(w * 0.46f, h, 6, w * 0.010f, 8, 0.50f, w * 0.15f, 1.6f, 2f);
             _right = r.ToObject("DrapeR", _root, velvet).transform;
-            _right.localPosition = new Vector3(w * 0.29f, top, 0);
+            _right.localPosition = new Vector3(w * 0.28f, top, -0.004f);
 
             var v = new MeshKit();
             v.Tint(new Color(0.9f, 0.9f, 0.9f)).At(new Vector3(0, 0, -w * 0.02f)).Drape(w * 1.04f, h * 0.16f, 9, w * 0.014f, 3, 0f, 0f, 3f, 0.4f);
@@ -119,14 +134,14 @@ namespace Parlor
             // Two little balconies with the audience in them, between the drapes.
             _boxes = new GameObject("Boxes").transform;
             _boxes.SetParent(_root, false);
-            float bw = w * 0.22f, bh = bw * 0.36f;
+            float bw = w * 0.26f, bh = bw * 0.36f;
             var front = Mats.Lit("wallbalcony", "balcony", new Color(1f, 0.9f, 0.8f), clip: Mats.ClipNone, rim: 0.5f);
             var crowd = Mats.Lit("wallaudience", "audience", Color.white, clip: Mats.ClipNone, unlit: 0.6f, cutoff: 0.4f, rim: 0f);
             for (int i = -1; i <= 1; i += 2)
             {
                 var box = new GameObject("Box").transform;
                 box.SetParent(_boxes, false);
-                box.localPosition = new Vector3(i * w * 0.115f, -h * 0.08f, -w * 0.03f);
+                box.localPosition = new Vector3(i * w * 0.14f, -h * 0.12f, -w * 0.03f);
                 var b = new MeshKit();
                 b.Tint(Color.white).Card(bw, bh, Vector2.zero, new Vector2(1f, 1f));
                 b.ToObject("Front", box, front);
@@ -152,6 +167,8 @@ namespace Parlor
             if (!_root) return;
             float drop = Mathf.Max(0.001f, x);
             _left.localScale = _right.localScale = new Vector3(1f, drop, 1f);
+            _backdrop.localScale = new Vector3(1f, drop, 1f);
+            _spot.gameObject.SetActive(x > 0.6f);
             _valance.localScale = new Vector3(Mathf.Lerp(0.2f, 1f, Mathf.Clamp01(x * 2f)), Mathf.Clamp01(x * 3f), 1f);
             float b = Mathf.Clamp01((x - 0.55f) / 0.45f);
             _boxes.localScale = Vector3.one * Mathf.SmoothStep(0, 1, b);

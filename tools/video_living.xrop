@@ -1,0 +1,70 @@
+# The whole show performed with simulated hands and head. No autopilot.
+seat 0 32
+sleep 1
+eval Parlor.NightStore.ResetAll(); Parlor.ParlorApp.Instance.Replace(); return "replaced";
+sleep 4
+until 20 placed: tier
+warm
+sleep 2
+hand right open @rest
+hand left open @restL
+until 40 gate arrival.hands →
+until 40 beat GazeCardPick
+sleep 3.5
+look @card2 0.6
+until 30 chosen card
+look @palm 0.6
+until 40 gate coin.pick open
+warm
+sleep 0.5
+hand right pinch @coin
+sleep 0.4
+until 20 gate coin.place open
+sleep 1.0
+hand right open
+hand right open @rest
+until 40 gate coin.place →
+sleep 0.2
+lean 0.36 0.27 0 1.0
+sleep 14
+seat 0 32
+until 60 gate palm.offer open
+hand right open @palm {"wrist_orientation":[0,0,1,0]}
+until 20 gate palm.offer →
+sleep 2
+until 60 gate lesson.palm open
+until 30 gate lesson.close open
+sleep 0.6
+hand right fist
+until 20 gate lesson.open open
+sleep 0.5
+hand right open
+until 20 gate lesson.open →
+sleep 1.5
+hand right open @rest
+until 60 gate finale.cover open
+sleep 1.0
+hand right open @caseWrist {"wrist_orientation":[0,0,0,1]}
+until 20 gate finale.cover →
+until 20 gate finale.lift open
+sleep 0.8
+hand right open @aboveCase {"wrist_orientation":[0,0,0,1]}
+hand right open @rest
+until 20 gate finale.lift →
+until 80 beat CurtainCall
+seat 0 8
+sleep 1.5
+until 60 gate curtain.bow open
+sleep 0.8
+seat 0 34
+until 30 gate curtain.bow →
+seat 0 8
+sleep 1
+seat 0 32
+until 60 gate encore.poke open
+warm
+sleep 1
+hand right poke @beforeToken
+hand right poke @token
+until 20 gate encore.poke →
+handstate

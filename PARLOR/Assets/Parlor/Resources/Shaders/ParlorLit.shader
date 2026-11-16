@@ -109,7 +109,8 @@ Shader "Parlor/Lit"
                 lit += rim * _ParlorWarm.rgb * (0.35 + albedo);
 
                 half depth = ParlorPitDepth(i.positionWS);
-                half glow = lerp(1.0, lerp(0.42, 1.30, depth * depth) , _PitGlow);
+                // brighter near the top than before (the pit read as a black hole on video), still warming towards the stage
+                half glow = lerp(1.0, lerp(0.74, 1.38, depth), _PitGlow);
                 half3 warm = lerp(half3(1, 1, 1), lerp(half3(0.80, 0.70, 0.78), _ParlorWarm.rgb * 1.25, depth), _PitGlow);
                 lit *= glow * warm;
 

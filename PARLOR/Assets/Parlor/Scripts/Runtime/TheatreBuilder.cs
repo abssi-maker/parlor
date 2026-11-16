@@ -97,11 +97,11 @@ namespace Parlor
                 // inward-facing: seen from the centre, p1 is to the left of p0
                 k.Tint(new Color(0.92f, 0.86f, 0.86f)).Quad(p1 + bot, p0 + bot, p0 + top, p1 + top, new Vector2(u1, 0), new Vector2(u0, h * 2.2f));
             }
-            k.ToObject("Walls", root, Mats.Lit("wallpaper", "wallpaper", new Color(0.78f, 0.36f, 0.34f), pitGlow: 1f, rim: 0f));
+            k.ToObject("Walls", root, Mats.Lit("wallpaper", "wallpaper", new Color(1.05f, 0.52f, 0.46f), pitGlow: 1f, rim: 0f));
 
             var f = new MeshKit();
-            f.Tint(new Color(0.30f, 0.17f, 0.12f)).At(Vector3.down * (PitDepth + 0.06f)).Disc(PitRadius + 0.01f, Seg);
-            f.ToObject("OrchestraFloor", root, Mats.Lit("darkwood", "wood", new Color(0.55f, 0.42f, 0.38f), pitGlow: 1f, rim: 0f, tiling: new Vector2(2, 2)));
+            f.Tint(new Color(0.62f, 0.38f, 0.26f)).At(Vector3.down * (PitDepth + 0.06f)).Disc(PitRadius + 0.01f, Seg);
+            f.ToObject("OrchestraFloor", root, Mats.Lit("darkwood", "wood", new Color(0.85f, 0.66f, 0.55f), pitGlow: 1f, rim: 0f, tiling: new Vector2(2, 2)));
         }
 
         // Three gilded tiers hugging the wall on the far three-quarters of the circle.
@@ -138,9 +138,11 @@ namespace Parlor
 
         static bool OnFarSide(int segment)
         {
-            // angle 90° is +Z (far from the user). Leave the near quarter (around -Z) open: it is never seen.
+            // angle 90° is +Z (far from the user). The near side is seen too: the shaft leans, and a user leaning over
+            // the opening looks straight down it, where bare wall read as a black hole. Only a narrow gap right under
+            // the user's edge of the opening is left out.
             float mid = (segment + 0.5f) * 360f / Seg;
-            return Mathf.Abs(Mathf.DeltaAngle(mid, 90f)) < 142f;
+            return Mathf.Abs(Mathf.DeltaAngle(mid, 90f)) < 168f;
         }
 
         // Tied-back side curtains and a swagged valance with gold fringe, framing the view just under the rim.
@@ -162,7 +164,7 @@ namespace Parlor
             // mid drapes along the sides
             k.Tint(shade).At(new Vector3(-0.315f, top - 0.02f, 0.02f), Quaternion.Euler(0, 82, 0)).Drape(0.18f, 0.60f, 3, 0.015f, 7, 0.5f, 0.05f, 1.1f, 2.8f);
             k.Tint(shade).At(new Vector3(0.315f, top - 0.02f, 0.02f), Quaternion.Euler(0, -82, 0)).Drape(0.18f, 0.60f, 3, 0.015f, 7, 0.5f, -0.05f, 1.1f, 2.8f);
-            k.ToObject("Curtains", root, Mats.Lit("velvet", "velvet", new Color(0.95f, 0.80f, 0.80f), pitGlow: 0.55f, rim: 0.7f, twoSided: true));
+            k.ToObject("Curtains", root, Mats.Lit("velvet", "velvet", new Color(1.45f, 1.0f, 1.0f), pitGlow: 0.55f, rim: 0.2f, twoSided: true));
 
             // gold trim: fringe under each valance, tie-back cords, and the crest
             var g = new MeshKit();
@@ -244,7 +246,7 @@ namespace Parlor
             for (int tier = 0; tier < TierY.Length; tier++)
             {
                 float y = TierY[tier] - 0.075f;
-                for (int i = 0; i < Seg; i += 3)
+                for (int i = tier % 2; i < Seg; i += 2)
                 {
                     if (!OnFarSide(i)) continue;
                     float a = i * Mathf.PI * 2f / Seg;
