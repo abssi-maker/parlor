@@ -38,7 +38,7 @@ namespace Parlor
             _mpb = new MaterialPropertyBlock();
             var p = new MeshKit();
             p.Card(1f, 1f, Vector2.zero, Vector2.one);
-            _panel = p.ToObject("Panel", transform, Mats.Fx("captionpanel", new Color(0.10f, 0.02f, 0.04f, 0.78f), soft: 0.22f, queueOffset: 20)).transform;
+            _panel = p.ToObject("Panel", transform, Mats.Fx("captionpanel", new Color(0.07f, 0.01f, 0.03f, 0.92f), soft: 0.12f, queueOffset: 20)).transform;
             _panel.localPosition = new Vector3(0, 0, 0.002f);
             _panelR = _panel.GetComponent<Renderer>();
 
@@ -52,7 +52,7 @@ namespace Parlor
             _text.textWrappingMode = TextWrappingModes.Normal;
             _text.overflowMode = TextOverflowModes.Overflow;
             _text.color = Mats.Cream;
-            _text.fontSize = 0.29f;                      // world units: TMP font size 1 = 0.1 m line at scale 1
+            _text.fontSize = 0.32f;                      // world units: TMP font size 1 = 0.1 m line at scale 1
             _text.rectTransform.sizeDelta = new Vector2(MaxWidth, 0.08f);
             _text.sortingOrder = 30;
             _text.text = "";

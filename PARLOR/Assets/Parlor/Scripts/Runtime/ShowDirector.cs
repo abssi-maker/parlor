@@ -74,7 +74,7 @@ namespace Parlor
         const float LiftTop = -0.004f;        // just under the table plane, so the stage floor is clipped to the opening
         float LiftBottom => -StageDepth;
         /// <summary>How far down the lift carries him for the catch: deep enough to read as "far below", near enough to see his face.</summary>
-        public const float StageDepth = 0.50f;
+        public const float StageDepth = 0.60f;
 
         // ------------------------------------------------------------------ lifecycle
 

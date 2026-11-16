@@ -45,6 +45,22 @@ namespace Parlor
                 eye.x, eye.y, -eye.z, -look.x, -look.y, look.z, look.w, table.Size.ToString("F2"), table.Pose.position.y);
         }
 
+        /// <summary>
+        /// Head pose leaning over the trapdoor (video hero shot): <paramref name="back"/> metres towards the user from the
+        /// opening, <paramref name="height"/> above the table, looking at a point <paramref name="lookDepth"/> into the pit.
+        /// </summary>
+        public static string OpenXrLean(float back = 0.16f, float height = 0.30f, float lookDepth = 0.45f)
+        {
+            var app = ParlorApp.Instance;
+            if (!app || !app.Stage) return "";
+            Transform s = app.Stage;
+            Vector3 eye = s.position - s.forward * back + Vector3.up * height;
+            Vector3 target = s.position + s.forward * 0.10f - Vector3.up * lookDepth;
+            Quaternion look = Quaternion.LookRotation(target - eye, s.forward);
+            var c = CultureInfo.InvariantCulture;
+            return string.Format(c, "{0:F3} {1:F3} {2:F3} {3:F4} {4:F4} {5:F4} {6:F4}", eye.x, eye.y, -eye.z, -look.x, -look.y, look.z, look.w);
+        }
+
         /// <summary>"x y z" in OpenXR conventions for a named point of the running show (simulated-hand targets).</summary>
         public static string OpenXrPoint(string name)
         {

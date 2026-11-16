@@ -15,7 +15,7 @@ namespace Parlor
         public const float RimDepth = 0.040f;       // the table's visible thickness along the cut
         public const float PitDepth = 1.00f;        // stage floor is this far below the table
         public const float PitRadius = 0.44f;
-        public const float StageRadius = 0.27f;
+        public const float StageRadius = 0.18f;   // smaller than the opening, so the house around it shows
         public static readonly float[] TierY = { -0.27f, -0.50f, -0.73f };
         const int Seg = 24;
 

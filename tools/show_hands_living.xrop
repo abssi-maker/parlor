@@ -1,0 +1,83 @@
+# The whole show performed with simulated hands and head. No autopilot.
+seat 0 32
+sleep 1
+eval Parlor.NightStore.ResetAll(); Parlor.ParlorApp.Instance.Replace(); return "replaced";
+sleep 4
+until 20 placed: tier
+sleep 2
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_00_placed.png
+hand right open @rest
+hand left open @restL
+until 40 gate arrival.hands →
+until 40 beat GazeCardPick
+sleep 3.5
+look @card2 0.6
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_01_gaze.png
+until 30 chosen card
+look @palm 0.6
+until 40 gate coin.pick open
+sleep 0.5
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_02_coin.png
+hand right pinch @coin
+sleep 0.4
+until 20 gate coin.place open
+sleep 1.0
+hand right open
+hand right open @rest
+until 40 gate coin.place →
+sleep 4.5
+lean 0.16 0.30 0.45 1.5
+sleep 2.0
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_03_drop.png
+sleep 1.2
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_04_catch.png
+sleep 2.5
+eval return Parlor.DebugSeat.Stats();
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_05_pit.png
+seat 0 32
+until 60 gate palm.offer open
+hand right open @palm {"wrist_orientation":[0,0,1,0]}
+until 20 gate palm.offer →
+sleep 2
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_06_palm.png
+until 60 gate lesson.palm open
+until 30 gate lesson.close open
+sleep 0.6
+hand right fist
+until 20 gate lesson.open open
+sleep 0.5
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_07_fist.png
+hand right open
+until 20 gate lesson.open →
+sleep 1.5
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_08_vanished.png
+hand right open @rest
+until 60 gate finale.cover open
+sleep 1.0
+hand right open @caseWrist {"wrist_orientation":[0,0,0,1]}
+until 20 gate finale.cover →
+until 20 gate finale.lift open
+sleep 0.8
+hand right open @aboveCase {"wrist_orientation":[0,0,0,1]}
+hand right open @rest
+until 20 gate finale.lift →
+until 80 beat CurtainCall
+seat 0 8
+sleep 1.5
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_09_card.png
+until 60 gate curtain.bow open
+sleep 0.8
+eval return Parlor.DebugSeat.Stats() + " onWall=" + Parlor.ParlorApp.Instance.Director.Curtains.OnWall;
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_10_curtain.png
+seat 0 34
+until 30 gate curtain.bow →
+seat 0 8
+sleep 1
+seat 0 32
+until 60 gate encore.poke open
+sleep 1
+shot /Users/mac/local/internal/meta/XR/repo/Captures/living/hero_11_encore.png
+hand right poke @beforeToken
+hand right poke @token
+until 20 gate encore.poke →
+handstate

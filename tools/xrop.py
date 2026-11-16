@@ -118,6 +118,16 @@ def main():
                 a = {"position": v[:3], "orientation": v[3:]}
                 if len(parts) > 1: a["duration_seconds"] = float(parts[1])
                 print("look", parts[0], "=>", s.call("openxr_set_head_pose", a).replace("\n", " ")[:80], flush=True); continue
+            if name == "lean":   # lean [back] [height] [lookDepth] [seconds]: lean the head over the trapdoor (hero shot)
+                import subprocess
+                parts = rest.split(); a3 = (parts + ["0.16", "0.30", "0.45"])[:3]
+                r = subprocess.run(["unity", "command", "script", "eval", "--timeout", "60", "--code",
+                                    "return Parlor.DebugSeat.OpenXrLean(%sf, %sf, %sf);" % tuple(a3)], capture_output=True, text=True)
+                nums = (r.stdout.strip().splitlines() or [""])[-1].split()
+                if len(nums) != 7: print("lean => failed", flush=True); continue
+                v = [float(x) for x in nums]; a = {"position": v[:3], "orientation": v[3:]}
+                if len(parts) > 3: a["duration_seconds"] = float(parts[3])
+                print("lean =>", s.call("openxr_set_head_pose", a).replace("\n", " ")[:80], flush=True); continue
             if name == "seat":   # seat [index] [pitch]: sit the simulated head at a table of the loaded room
                 import subprocess
                 parts = rest.split(); idx = parts[0] if parts else "0"; pitch = parts[1] if len(parts) > 1 else "32"; slide = parts[2] if len(parts) > 2 else "0"
