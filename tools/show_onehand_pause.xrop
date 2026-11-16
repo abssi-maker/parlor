@@ -2,6 +2,7 @@
 seat 0 32
 sleep 1
 eval Parlor.NightStore.ResetAll(); Parlor.ParlorApp.Instance.Replace(); return "replaced";
+sleep 4
 until 20 placed: tier
 hand right open @rest
 until 40 gate arrival.hands →

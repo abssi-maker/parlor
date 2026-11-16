@@ -120,9 +120,9 @@ def main():
                 print("look", parts[0], "=>", s.call("openxr_set_head_pose", a).replace("\n", " ")[:80], flush=True); continue
             if name == "seat":   # seat [index] [pitch]: sit the simulated head at a table of the loaded room
                 import subprocess
-                parts = rest.split(); idx = parts[0] if parts else "0"; pitch = parts[1] if len(parts) > 1 else "32"
+                parts = rest.split(); idx = parts[0] if parts else "0"; pitch = parts[1] if len(parts) > 1 else "32"; slide = parts[2] if len(parts) > 2 else "0"
                 r = subprocess.run(["unity", "command", "script", "eval", "--timeout", "60", "--code",
-                                    "return Parlor.DebugSeat.OpenXrSeat(%s, %sf);" % (idx, pitch)], capture_output=True, text=True)
+                                    "return Parlor.DebugSeat.OpenXrSeat(%s, %sf, %sf);" % (idx, pitch, slide)], capture_output=True, text=True)
                 line = (r.stdout.strip().splitlines() or [""])[-1]
                 nums = line.split("|")[0].split()
                 if len(nums) != 7: print("seat => no usable table:", line[:200], flush=True); continue

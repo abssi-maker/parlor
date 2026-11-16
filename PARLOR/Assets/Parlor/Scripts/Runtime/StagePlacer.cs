@@ -16,7 +16,14 @@ namespace Parlor
         /// <summary>How far in front of the eyes (horizontally) the stage origin should sit.</summary>
         public const float Ahead = 0.52f;
         public const float MaxReach = 0.80f;
-        const float EdgeMargin = 0.16f;
+        /// <summary>
+        /// What must physically rest on the table, in stage XZ (x = right, y = away from the user): the trapdoor and its
+        /// rim, the coin's landing spot and the velvet case in front of it. Every corner must be on the tabletop, so
+        /// nothing ever hangs over an edge or floats above a chair.
+        /// </summary>
+        public static readonly Rect Footprint = Rect.MinMaxRect(-0.215f, -0.255f, 0.215f, 0.19f);
+        const float FootMargin = 0.015f;
+        const float GridStep = 0.04f;
 
         public static IEnumerator Place(Transform stage, StageSite site, IRoomSource room, IHeadSource head, int forcedTier = 0, Pose? savedAnchor = null)
         {
@@ -30,20 +37,27 @@ namespace Parlor
             {
                 var tables = new List<TableSurface>();
                 room.Tables(tables);
+                var obstacles = new List<RoomBox>();
+                room.Obstacles(obstacles);
 
-                // Returning user: same table as last time → the stage goes back on exactly the same spot.
+                // Returning user: same table as last time → the stage goes back on exactly the same spot, but only if
+                // that spot is still reachable from where they sit and still clear (things move on real tables).
                 if (NightStore.TryGetTableOffset(out string savedUuid, out Vector3 savedPos, out float savedYaw))
                     foreach (var t in tables)
                         if (t.Uuid == savedUuid)
                         {
                             Pose p = new Pose(t.Pose.position + t.Pose.rotation * savedPos, t.Pose.rotation * Quaternion.Euler(0, savedYaw, 0));
-                            Apply(stage, site, p, RectOnTable(t, p), 1, t.Uuid, true);
-                            yield break;
+                            float reach = Vector3.ProjectOnPlane(p.position - h.position, Vector3.up).magnitude;
+                            if (reach <= MaxReach && FootprintFits(t, p) && !Blocked(t, p, obstacles))
+                            {
+                                Apply(stage, site, p, RectOnTable(t, p), 1, t.Uuid, true);
+                                yield break;
+                            }
                         }
 
                 float best = float.MaxValue; Pose bestPose = default; Rect bestRect = default; TableSurface bestTable = default;
                 foreach (var t in tables)
-                    if (TryTable(t, h, out Pose p, out Rect r, out float score) && score < best)
+                    if (TryTable(t, h, out Pose p, out Rect r, out float score, obstacles) && score < best)
                     { best = score; bestPose = p; bestRect = r; bestTable = t; }
                 if (best < float.MaxValue)
                 {
@@ -76,6 +90,42 @@ namespace Parlor
             site.Tier = tier; site.TableRect = rect; site.TableUuid = uuid ?? ""; site.Restored = restored;
         }
 
+        /// <summary>True when every corner of the footprint (plus a small margin) lies on the tabletop.</summary>
+        public static bool FootprintFits(TableSurface t, Pose stagePose)
+        {
+            Quaternion inv = Quaternion.Inverse(t.Pose.rotation);
+            Vector2 half = t.Size * 0.5f - Vector2.one * FootMargin;
+            if (half.x <= 0f || half.y <= 0f) return false;
+            Rect f = Footprint;
+            foreach (var c in new[] { new Vector2(f.xMin, f.yMin), new Vector2(f.xMax, f.yMin), new Vector2(f.xMax, f.yMax), new Vector2(f.xMin, f.yMax) })
+            {
+                Vector3 l = inv * (stagePose.position + stagePose.rotation * new Vector3(c.x, 0, c.y) - t.Pose.position);
+                if (Mathf.Abs(l.x) > half.x + 1e-4f || Mathf.Abs(l.z) > half.y + 1e-4f) return false;
+            }
+            return true;
+        }
+
+        /// <summary>True when a scanned object standing on this table overlaps the footprint.</summary>
+        public static bool Blocked(TableSurface t, Pose stagePose, List<RoomBox> obstacles)
+        {
+            if (obstacles == null || obstacles.Count == 0) return false;
+            float top = t.Pose.position.y;
+            Rect f = Footprint;
+            foreach (var o in obstacles)
+            {
+                // only things that rise above the tabletop and start below a hand's height over it
+                if (o.TopY < top + 0.015f || o.BottomY > top + 0.45f) continue;
+                for (int i = 0; i <= 4; i++)
+                    for (int j = 0; j <= 4; j++)
+                    {
+                        Vector3 w = stagePose.position + stagePose.rotation *
+                                    new Vector3(Mathf.Lerp(f.xMin, f.xMax, i / 4f), 0, Mathf.Lerp(f.yMin, f.yMax, j / 4f));
+                        if (o.ContainsXZ(w, 0.02f)) return true;
+                    }
+            }
+            return false;
+        }
+
         /// <summary>Tier 3: the stage 40 cm below eye level, about half a metre ahead, facing away from the user.</summary>
         public static Pose Floating(Pose head)
         {
@@ -87,11 +137,12 @@ namespace Parlor
         }
 
         /// <summary>
-        /// Stage pose on one table, or false if the table is out of reach, too high, too low or tilted.
-        /// The stage goes to a reachable point in front of the user (not the middle of a two-metre desk) and its
-        /// axes snap to the table's edges when the user sits roughly square to it, so the trapdoor lines up with the wood.
+        /// Stage pose on one table, or false if the table is out of reach, too high, too low, tilted, too small for the
+        /// footprint, or covered where the user could reach. The stage goes to a reachable point in front of the user
+        /// (not the middle of a two-metre desk) and its axes snap to the table's edges when the user sits roughly square to it.
         /// </summary>
-        public static bool TryTable(TableSurface t, Pose head, out Pose stagePose, out Rect tableRect, out float score)
+        public static bool TryTable(TableSurface t, Pose head, out Pose stagePose, out Rect tableRect, out float score,
+                                    List<RoomBox> obstacles = null)
         {
             stagePose = default; tableRect = default; score = float.MaxValue;
             Vector3 up = t.Pose.rotation * Vector3.up;
@@ -112,24 +163,37 @@ namespace Parlor
             if (fwd.sqrMagnitude < 0.04f) fwd = -eye;                         // looking straight down: face the table centre
             if (fwd.sqrMagnitude < 1e-4f) fwd = Vector2.up;
             fwd.Normalize();
-
-            Vector2 m = new Vector2(Mathf.Min(EdgeMargin, half.x * 0.5f), Mathf.Min(EdgeMargin, half.y * 0.5f));
             Vector2 want = eye + fwd * Ahead;
-            Vector2 c = new Vector2(Mathf.Clamp(want.x, -half.x + m.x, half.x - m.x), Mathf.Clamp(want.y, -half.y + m.y, half.y - m.y));
-            float reach = (c - eye).magnitude;
-            if (reach > MaxReach) return false;
 
-            Vector2 d = c - eye;
-            d = d.sqrMagnitude > 0.0025f ? d.normalized : fwd;
-            // snap to the nearest table axis when within 35°
-            Vector2 axis = Mathf.Abs(d.x) > Mathf.Abs(d.y) ? new Vector2(Mathf.Sign(d.x), 0) : new Vector2(0, Mathf.Sign(d.y));
-            if (Vector2.Angle(d, axis) < 35f) d = axis;
+            // Search the tabletop on a 4 cm grid for the spot nearest to "half a metre in front of the eyes" where the
+            // whole footprint rests on the table, within reach, clear of scanned objects.
+            bool found = false; float best = float.MaxValue; Pose bestPose = default;
+            int nx = Mathf.Max(1, Mathf.CeilToInt(t.Size.x / GridStep)), nz = Mathf.Max(1, Mathf.CeilToInt(t.Size.y / GridStep));
+            for (int i = 0; i <= nx; i++)
+                for (int j = 0; j <= nz; j++)
+                {
+                    Vector2 c = new Vector2(-half.x + t.Size.x * i / nx, -half.y + t.Size.y * j / nz);
+                    float reach = (c - eye).magnitude;
+                    if (reach > MaxReach) continue;
+                    float s = (want - c).magnitude + Mathf.Abs(reach - Ahead) * 0.5f;
+                    if (s >= best) continue;
 
-            Quaternion rot = t.Pose.rotation * Quaternion.LookRotation(new Vector3(d.x, 0, d.y), Vector3.up);
-            stagePose = new Pose(t.Pose.position + t.Pose.rotation * new Vector3(c.x, 0, c.y), rot);
+                    Vector2 d = c - eye;
+                    d = d.sqrMagnitude > 0.0025f ? d.normalized : fwd;
+                    // snap to the nearest table axis when within 35°, so the trapdoor lines up with the wood
+                    Vector2 axis = Mathf.Abs(d.x) > Mathf.Abs(d.y) ? new Vector2(Mathf.Sign(d.x), 0) : new Vector2(0, Mathf.Sign(d.y));
+                    if (Vector2.Angle(d, axis) < 35f) d = axis;
+                    var p = new Pose(t.Pose.position + t.Pose.rotation * new Vector3(c.x, 0, c.y),
+                                     t.Pose.rotation * Quaternion.LookRotation(new Vector3(d.x, 0, d.y), Vector3.up));
+                    if (!FootprintFits(t, p) || Blocked(t, p, obstacles)) continue;
+                    best = s; bestPose = p; found = true;
+                }
+            if (!found) return false;
+
+            stagePose = bestPose;
             tableRect = RectOnTable(t, stagePose);
-            // Prefer the table the user is facing and sitting at: little clamping, short reach.
-            score = (want - c).magnitude + gap + Mathf.Abs(reach - Ahead) * 0.5f;
+            // Prefer the table the user is facing and sitting at: little displacement, short reach.
+            score = best + gap;
             return true;
         }
 

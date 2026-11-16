@@ -1,6 +1,7 @@
 seat 0 32
 sleep 1.0
 eval Parlor.NightStore.ResetAll(); Parlor.ParlorApp.Instance.Replace(); return "replaced";
+sleep 4
 until 20 placed: tier
 sleep 3
 openxr_capture_composited_image {"eye":"left"} --out /Users/mac/local/internal/meta/XR/repo/Captures/sim2_01.jpg

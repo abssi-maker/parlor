@@ -187,6 +187,43 @@ namespace Parlor.Tests
         }
 
         [Test]
+        public void WholeFootprintRestsOnTheTable([Values(0f, 45f, 133f)] float yaw, [Values(0.5f, 1.0f, 2.2f)] float width,
+                                                 [Values(-0.6f, 0f, 0.6f)] float sideways)
+        {
+            var t = Table(new Vector3(1, 0.85f, 2), yaw, width, 0.8f);
+            Quaternion r = Quaternion.Euler(0, yaw, 0);
+            // sitting at the near edge, possibly level with a corner: the stage must still not hang off
+            Vector3 seat = t.Pose.position + r * new Vector3(sideways * width * 0.5f, 0.44f, -0.4f - 0.24f);
+            if (!StagePlacer.TryTable(t, Seated(seat, yaw, 32f), out Pose stage, out _, out _)) return;   // out of reach is allowed
+            Assert.IsTrue(StagePlacer.FootprintFits(t, stage));
+            Rect f = StagePlacer.Footprint;
+            foreach (var c in new[] { new Vector2(f.xMin, f.yMin), new Vector2(f.xMax, f.yMin), new Vector2(f.xMax, f.yMax), new Vector2(f.xMin, f.yMax) })
+            {
+                Vector3 l = Quaternion.Inverse(t.Pose.rotation) * (stage.position + stage.rotation * new Vector3(c.x, 0, c.y) - t.Pose.position);
+                Assert.LessOrEqual(Mathf.Abs(l.x), width * 0.5f); Assert.LessOrEqual(Mathf.Abs(l.z), 0.4f);
+            }
+        }
+
+        [Test]
+        public void StageStepsAroundAnObjectOnTheTableAndSkipsTablesTooSmall()
+        {
+            var t = Table(new Vector3(0, 0.85f, 0.7f), 0, 2.0f, 0.9f);
+            var head = Seated(new Vector3(0, 1.29f, 0), 0, 32f);
+            Assert.IsTrue(StagePlacer.TryTable(t, head, out Pose free, out _, out _));
+            // a 30 cm board-game box exactly where the stage would go
+            var box = new GameObject("box").transform;
+            box.position = free.position + Vector3.up * 0.04f;
+            var obstacles = new List<RoomBox> { new RoomBox { WorldToLocal = box.worldToLocalMatrix, Local = new Bounds(Vector3.zero, new Vector3(0.30f, 0.08f, 0.30f)),
+                                                              TopY = 0.93f, BottomY = 0.85f } };
+            Assert.IsTrue(StagePlacer.TryTable(t, head, out Pose moved, out _, out _, obstacles));
+            Assert.IsFalse(StagePlacer.Blocked(t, moved, obstacles));
+            Assert.Greater(Vector3.Distance(free.position, moved.position), 0.2f);
+            Object.DestroyImmediate(box.gameObject);
+            // a 40 x 30 cm side table cannot carry the trapdoor, coin and case
+            Assert.IsFalse(StagePlacer.TryTable(Table(new Vector3(0, 0.6f, 0.55f), 0, 0.40f, 0.30f), head, out _, out _, out _));
+        }
+
+        [Test]
         public void TablesOutOfReachOrAboveTheChinAreRejected()
         {
             var head = Seated(new Vector3(0, 1.15f, 0), 0);

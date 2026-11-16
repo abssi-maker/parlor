@@ -37,12 +37,44 @@ namespace Parlor.Quest
         public void Tables(List<TableSurface> into)
         {
             if (!Available) return;
-            // Tables first, but any labelled furniture with a flat top will do (a desk captured as OTHER, a low
-            // storage unit, a couch arm is too narrow and gets rejected by StagePlacer).
-            const MRUKAnchor.SceneLabels flat = MRUKAnchor.SceneLabels.TABLE | MRUKAnchor.SceneLabels.OTHER | MRUKAnchor.SceneLabels.STORAGE | MRUKAnchor.SceneLabels.BED;
+            // Only real tables and desks. The volumes of other furniture are bounding boxes, not surfaces: the top of a
+            // chair's box is its backrest height, which is thin air in front of the table.
             foreach (var room in MRUK.Instance.Rooms)
                 foreach (var a in room.Anchors)
-                    if (a && a.HasAnyLabel(flat) && TryTop(a, out TableSurface s)) into.Add(s);
+                    if (a && a.HasAnyLabel(MRUKAnchor.SceneLabels.TABLE) && TryTop(a, out TableSurface s)) into.Add(s);
+        }
+
+        public void Obstacles(List<RoomBox> into)
+        {
+            if (!Available) return;
+            const MRUKAnchor.SceneLabels structural = MRUKAnchor.SceneLabels.TABLE | MRUKAnchor.SceneLabels.FLOOR |
+                MRUKAnchor.SceneLabels.CEILING | MRUKAnchor.SceneLabels.WALL_FACE | MRUKAnchor.SceneLabels.GLOBAL_MESH |
+                MRUKAnchor.SceneLabels.INVISIBLE_WALL_FACE;
+            foreach (var room in MRUK.Instance.Rooms)
+                foreach (var a in room.Anchors)
+                {
+                    if (!a || a.HasAnyLabel(structural) || !a.VolumeBounds.HasValue) continue;
+                    Bounds b = a.VolumeBounds.Value;
+                    Transform t = a.transform;
+                    float top = float.MinValue, bottom = float.MaxValue;
+                    for (int i = 0; i < 8; i++)
+                    {
+                        Vector3 c = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                        float y = t.TransformPoint(c).y;
+                        top = Mathf.Max(top, y); bottom = Mathf.Min(bottom, y);
+                    }
+                    into.Add(new RoomBox { WorldToLocal = t.worldToLocalMatrix, Local = b, TopY = top, BottomY = bottom });
+                }
+        }
+
+        public bool TryFloorY(out float y)
+        {
+            y = 0f;
+            if (!Available) return false;
+            foreach (var room in MRUK.Instance.Rooms)
+                foreach (var f in room.FloorAnchors)
+                    if (f) { y = f.transform.position.y; return true; }
+            return false;
         }
 
         static bool TryTop(MRUKAnchor a, out TableSurface s)

@@ -93,7 +93,11 @@ namespace Parlor
             // over the table still gets a near-vertical shaft, a user far back does not get an absurd one).
             Vector3 eye = Stage.InverseTransformPoint(Head.Head.position);
             float lean = eye.y > 0.15f ? Mathf.Clamp(-eye.z / eye.y * 0.92f, 0.25f, 1.30f) : 1.0f;
-            portal.Build(new Vector2(Mathf.Min(-r.xMin, r.xMax), Mathf.Min(-r.yMin, r.yMax)), site.Tier == 3, lean);
+            // The floating table stands on the real floor: its legs run down to the scanned floor (or the tracking floor).
+            float floorY = 0f;
+            if (Room != null) Room.TryFloorY(out floorY);
+            float legH = Mathf.Clamp(Stage.position.y - floorY - 0.03f, 0.25f, 1.20f);
+            portal.Build(new Vector2(Mathf.Min(-r.xMin, r.xMax), Mathf.Min(-r.yMin, r.yMax)), site.Tier == 3, lean, legH);
 
             Director = Stage.gameObject.AddComponent<ShowDirector>();
             Director.Stage = Stage;

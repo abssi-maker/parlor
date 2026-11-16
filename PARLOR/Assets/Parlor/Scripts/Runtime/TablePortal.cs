@@ -89,7 +89,7 @@ namespace Parlor
         /// Builds the portal. maxHalf is how much table there is around the stage origin (from the table's
         /// PlaneRect); the opening shrinks to fit small tables and the finale widening is limited to match.
         /// </summary>
-        public void Build(Vector2 maxHalf, bool virtualTable, float leanAway = 0f)
+        public void Build(Vector2 maxHalf, bool virtualTable, float leanAway = 0f, float legHeight = 0.70f)
         {
             LeanAway = leanAway; _aim = new Vector2(0, leanAway);
             _mpb = new MaterialPropertyBlock();
@@ -102,7 +102,7 @@ namespace Parlor
             BuildRim();
             BuildLeaves();
             BuildLight();
-            if (virtualTable) BuildVirtualTable();
+            if (virtualTable) BuildVirtualTable(legHeight);
             Apply();
         }
 
@@ -165,9 +165,9 @@ namespace Parlor
         }
 
         // Tier 3: no real table, so the trapdoor opens in a small virtual parlour table instead.
-        void BuildVirtualTable()
+        void BuildVirtualTable(float legH)
         {
-            float w = 0.92f, dpt = 0.64f, th = 0.03f, legH = 0.70f;
+            float w = 0.92f, dpt = 0.64f, th = 0.03f;   // legH: down to the real floor
             var top = new MeshKit();
             top.Tint(Color.white).Ground(w, dpt, 2f);
             var root = new GameObject("VirtualTable").transform;
