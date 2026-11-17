@@ -6,8 +6,8 @@ sleep 4
 until 20 placed: tier
 warm
 sleep 2
-hand right open @rest
-hand left open @restL
+hand right open @rest {"wrist_orientation":"flat"}
+hand left open @restL {"wrist_orientation":"flat"}
 until 40 gate arrival.hands →
 until 40 beat GazeCardPick
 sleep 3.5
@@ -22,7 +22,7 @@ sleep 0.4
 until 20 gate coin.place open
 sleep 1.0
 hand right open
-hand right open @rest
+hand right open @rest {"wrist_orientation":"flat"}
 until 40 gate coin.place →
 sleep 0.2
 lean 0.22 0.38 0 1.0
@@ -41,7 +41,7 @@ sleep 0.5
 hand right open
 until 20 gate lesson.open →
 sleep 1.5
-hand right open @rest
+hand right open @rest {"wrist_orientation":"flat"}
 # --- the Mishap ---
 until 60 beat Mishap
 until 60 gate mishap.hold open
@@ -51,8 +51,8 @@ hand left open @doorL {"wrist_orientation":"flat"}
 until 20 gate mishap.hold →
 until 20 door bursts
 sleep 0.15
-hand right open @rest
-hand left open @restL
+hand right open @rest {"wrist_orientation":"flat"}
+hand left open @restL {"wrist_orientation":"flat"}
 until 20 monster rises
 seat 0 8 0 1.4
 until 40 gate mishap.close open
@@ -67,22 +67,22 @@ seat 0 32 0 1.2
 sleep 0.6
 hand right open @palm {"wrist_orientation":"palmup"}
 sleep 5
-hand right open @rest
+hand right open @rest {"wrist_orientation":"flat"}
 # --- finale ---
 until 60 gate finale.cover open
 sleep 0.6
 hand right open @caseWrist {"wrist_orientation":"flat"}
 until 20 gate finale.cover →
 until 20 gate finale.lift open
-sleep 0.8
+sleep 0.4
 hand right open @aboveCase {"wrist_orientation":"flat"}
-hand right open @rest
 until 20 gate finale.lift →
+hand right open @rest {"wrist_orientation":"flat"}
 until 80 beat CurtainCall
 seat 0 8 0 1.2
 sleep 1.5
 until 60 gate curtain.bow open
-sleep 0.8
+sleep 0.4
 seat 0 34 0 0.5
 until 30 gate curtain.bow →
 seat 0 8 0 0.6
