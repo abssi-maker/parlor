@@ -68,8 +68,11 @@ Shader "Parlor/HandOccluder"
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 // Premultiplied: rgb and alpha both scale with the ghost amount; (0,0,0,0) is a pure hole.
-                half a = _Ghost.a * (0.55 + 0.45 * i.fresnel);
-                return half4(_Ghost.rgb * a, a);
+                // Simulator only (_Ghost.a = 0 on a headset): mostly opaque with a darker silhouette edge, so the
+                // hands read clearly even over a white tabletop in the demo footage.
+                half a = _Ghost.a * (0.80 + 0.20 * i.fresnel);
+                half3 c = _Ghost.rgb * (1.0 - 0.45 * i.fresnel);
+                return half4(c * a, a);
             }
             ENDHLSL
         }

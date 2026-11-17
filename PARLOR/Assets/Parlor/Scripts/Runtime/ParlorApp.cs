@@ -114,6 +114,10 @@ namespace Parlor
             Director.Audio.Muted = Options.Mute;
             Director.Curtains = WallCurtainStager.Create(Stage, Room);
             Director.Title = TitleCard.Create(Stage);
+            Director.Dimmer = RoomDimmer.Create(Stage, Head);
+            Director.Shadow = WallShadow.Create(Stage, Room);
+            Director.Claw = ShadowClaw.Create(Stage);
+            Director.Room = Room;
             Director.OneHanded = NightStore.OneHanded;
             Director.Autopilot = Options.Autopilot;
             Director.NightCompleted = NightStore.CompleteNight;

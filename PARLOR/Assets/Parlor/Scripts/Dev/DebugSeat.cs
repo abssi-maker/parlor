@@ -74,14 +74,32 @@ namespace Parlor
         {
             var sb = new System.Text.StringBuilder();
             foreach (var n in new[] { "coin", "aboveCoin", "place", "abovePlace", "palm", "case", "caseWrist", "aboveCase", "token",
-                                      "beforeToken", "card0", "card1", "card2", "rest", "restL" })
+                                      "beforeToken", "card0", "card1", "card2", "rest", "restL", "doorL", "doorR" })
                 sb.Append("P ").Append(n).Append(' ').Append(OpenXrPoint(n)).Append('\n');
             foreach (var pitch in new[] { 4, 8, 32, 34 })
                 sb.Append("S 0 ").Append(pitch).Append(' ').Append(OpenXrSeat(0, pitch).Split('|')[0].Trim()).Append('\n');
             foreach (var n in new[] { "card0", "card1", "card2", "palm" })
                 sb.Append("L ").Append(n).Append(' ').Append(OpenXrLook(n)).Append('\n');
             sb.Append("N ").Append(OpenXrLean()).Append('\n');
+            foreach (var n in new[] { "flat", "palmup" }) sb.Append("Q ").Append(n).Append(' ').Append(OpenXrHandRotation(n)).Append('\n');
             return sb.ToString().Replace("\n", " ;; ");
+        }
+
+        /// <summary>
+        /// "x y z w" (OpenXR) wrist rotation for a simulated hand, on the stage's axes: "flat" = palm down, fingers pointing
+        /// away from the seated user; "palmup" = the same, turned palm up. OpenXR hand joints point the fingers along -Z
+        /// with the back of the hand on +Y, the same convention as a head looking along -Z, so the conversion matches
+        /// OpenXrSeat's.
+        /// </summary>
+        public static string OpenXrHandRotation(string name)
+        {
+            var app = ParlorApp.Instance;
+            if (!app || !app.Stage) return "";
+            Transform st = app.Stage;
+            Vector3 f = Vector3.ProjectOnPlane(st.forward, Vector3.up).normalized;
+            Quaternion q = Quaternion.LookRotation(f, Vector3.up);
+            if (name == "palmup") q *= Quaternion.Euler(0, 0, 180);
+            return string.Format(CultureInfo.InvariantCulture, "{0:F4} {1:F4} {2:F4} {3:F4}", -q.x, -q.y, q.z, q.w);
         }
 
         /// <summary>"x y z" in OpenXR conventions for a named point of the running show (simulated-hand targets).</summary>
@@ -100,8 +118,11 @@ namespace Parlor
                 case "palm": p = st.TransformPoint(new Vector3(0.0f, 0.10f, -0.22f)); break;
                 case "case": p = d.Case.CoverPoint + st.up * 0.05f; break;
                 // wrist position for a flat, palm-down hand whose palm is over the case (fingers along world +Z)
-                case "caseWrist": p = d.Case.CoverPoint + st.up * 0.06f - Vector3.forward * 0.09f; break;
+                case "caseWrist": p = d.Case.CoverPoint + st.up * 0.06f - st.forward * 0.09f; break;
                 case "aboveCase": p = d.Case.CoverPoint + st.up * 0.26f; break;
+                // wrist positions for two flat, palm-down hands holding the trapdoor shut (the Mishap)
+                case "doorL": p = d.Portal.transform.position - st.right * 0.075f + st.up * 0.055f - st.forward * 0.10f; break;
+                case "doorR": p = d.Portal.transform.position + st.right * 0.075f + st.up * 0.055f - st.forward * 0.10f; break;
                 case "token": p = d.Token.transform.position; break;
                 case "beforeToken": p = d.Token.transform.position - st.forward * 0.08f; break;
                 case "card0": case "card1": case "card2":

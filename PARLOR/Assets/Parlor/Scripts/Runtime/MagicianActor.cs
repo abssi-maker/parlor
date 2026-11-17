@@ -30,6 +30,13 @@ namespace Parlor
         float _wandScale;
         Coroutine _gesture;
         SkinnedMeshRenderer _smr;
+        // the Mishap: 0 = himself, 1 = possessed (bigger, darker, red eyes, horns). Eased, never snapped on screen.
+        float _monster, _monsterTarget, _hatAskew, _hatAskewTarget, _shake;
+        Renderer _eyes;
+        Transform _horns;
+        MaterialPropertyBlock _mpb;
+        static readonly int IdColor = Shader.PropertyToID("_Color");
+        public bool IsMonster => _monsterTarget > 0.5f;
 
         public Transform RightHand => _bones[(int)B.HandR];
         public Transform LeftHand => _bones[(int)B.HandL];
@@ -200,6 +207,22 @@ namespace Parlor
             _smr.updateWhenOffscreen = false;
             MeshKit.Quiet(_smr);
 
+            // Monster form (the Mishap): glowing eyes and two little horns, hidden until he is possessed.
+            var eyes = new MeshKit();
+            foreach (float s in new[] { -1f, 1f })
+                eyes.Tint(new Color(1.6f, 0.15f, 0.08f)).At(hc + new Vector3(s * 0.0090f, 0.0048f, 0.0206f), Quaternion.identity, new Vector3(0.0060f, 0.0052f, 0.0030f)).Sphere(1f, 8, 6);
+            var eyeGo = eyes.ToObject("MonsterEyes", transform, Mats.Lit("monstereyes", null, Color.white, clip: Mats.ClipBelow, rim: 0f, unlit: 1f));
+            eyeGo.transform.SetParent(_bones[(int)B.Head], true);
+            _eyes = eyeGo.GetComponent<Renderer>();
+            var horns = new MeshKit();
+            foreach (float s in new[] { -1f, 1f })
+                horns.Tint(new Color(0.45f, 0.06f, 0.10f)).At(new Vector3(s * 0.016f, 0.172f, 0.002f), Quaternion.Euler(0, 0, s * -28)).Cylinder(0.0055f, 0.0005f, 0.026f, 8, true, false);
+            var hornGo = horns.ToObject("MonsterHorns", transform, Mats.Lit("monsterhorns", null, Color.white, clip: Mats.ClipBelow, rim: 1.0f));
+            hornGo.transform.SetParent(_bones[(int)B.Hat], true);
+            _horns = hornGo.transform;
+            _eyes.enabled = false; _horns.gameObject.SetActive(false);
+            _mpb = new MaterialPropertyBlock();
+
             for (int i = 0; i < (int)B.Count; i++) { _rest[i] = _bones[i].localRotation; _current[i] = _rest[i]; }
             _hipsRest = _bones[(int)B.Hips].localPosition;
             _bones[(int)B.Wand].localScale = Vector3.zero;
@@ -237,7 +260,8 @@ namespace Parlor
                 if (i == (int)B.Chest) e += new Vector3(breathe * 1.2f, 0, Mathf.Sin(tNow * 0.9f) * 1.5f);
                 if (i == (int)B.Head) e += new Vector3(chatter * 3.0f + _lookPitch, _lookYaw, Mathf.Sin(tNow * 1.3f) * 2f + chatter * 1.5f);
                 if (i == (int)B.Moustache) e += new Vector3(chatter * 9f, 0, Mathf.Sin(tNow * 2.3f) * 2f);
-                if (i == (int)B.Hat) e += new Vector3(chatter * -2f, 0, 0);
+                if (i == (int)B.Hat) e += new Vector3(chatter * -2f, 0, _hatAskew);
+                if (i == (int)B.Head && _shake > 0f) e += new Vector3(0, Mathf.Sin(tNow * 38f) * 14f * _shake, 0);
                 if (i == (int)B.ArmR || i == (int)B.ArmL) e += new Vector3(breathe * 1.5f, 0, 0);
                 _current[i] = Quaternion.Slerp(_current[i], _rest[i] * Quaternion.Euler(e), k);
                 _bones[i].localRotation = _current[i];
@@ -263,8 +287,46 @@ namespace Parlor
             _wandScale = Mathf.MoveTowards(_wandScale, _wandOut ? 1f : 0f, dt * 7f);
             _bones[(int)B.Wand].localScale = Vector3.one * _wandScale;
 
+            UpdateMonster(dt, tNow);
             UpdateLook(dt);
         }
+
+        void UpdateMonster(float dt, float tNow)
+        {
+            _monster = Mathf.MoveTowards(_monster, _monsterTarget, dt * 0.9f);
+            _hatAskew = Mathf.Lerp(_hatAskew, _hatAskewTarget, 1f - Mathf.Exp(-10f * dt));
+            float m = Mathf.SmoothStep(0f, 1f, _monster);
+            // he swells to half as big again, with a slow menacing breath
+            float swell = 1f + 0.55f * m + 0.03f * m * Mathf.Sin(tNow * 2.4f);
+            transform.localScale = Vector3.one * Scale * swell;
+            if (_smr)
+            {
+                _smr.GetPropertyBlock(_mpb);
+                _mpb.SetColor(IdColor, Color.Lerp(Color.white, new Color(0.46f, 0.26f, 0.55f), m));
+                _smr.SetPropertyBlock(_mpb);
+            }
+            bool on = m > 0.35f && (_smr == null || _smr.enabled);
+            if (_eyes)
+            {
+                _eyes.enabled = on;
+                // the eyes pulse slowly (well under three flashes a second)
+                _eyes.transform.localScale = Vector3.one * (0.9f + 0.18f * Mathf.Sin(tNow * 4f));
+            }
+            if (_horns) { _horns.gameObject.SetActive(on); _horns.localScale = Vector3.one * Mathf.Clamp01((m - 0.35f) / 0.65f); }
+        }
+
+        /// <summary>Possessed (true) or himself again (false). snap = no transition (canonical beat starts).</summary>
+        public void SetMonster(bool on, bool snap = false)
+        {
+            _monsterTarget = on ? 1f : 0f;
+            if (snap) { _monster = _monsterTarget; UpdateMonster(0f, Time.time); }
+        }
+
+        /// <summary>Hat knocked crooked after the scuffle (degrees of roll; 0 = straight).</summary>
+        public void SetHatAskew(float degrees) { _hatAskewTarget = degrees; }
+
+        /// <summary>Head shake: 0 = still, 1 = violent "fighting it from inside".</summary>
+        public void SetShake(float amount) { _shake = Mathf.Clamp01(amount); }
 
         float _lookYaw, _lookPitch;
 
@@ -534,6 +596,85 @@ namespace Parlor
                 yield return Wait(0.22f);
             }
             Rest();
+        }
+
+        /// <summary>Comic panic: arms flailing over his head, little hops, for the given time.</summary>
+        public float Panic(float seconds = 1.8f)
+        {
+            Play(PanicRoutine(seconds));
+            return seconds;
+        }
+        IEnumerator PanicRoutine(float seconds)
+        {
+            Rest();
+            for (float t = 0; t < seconds; t += 0.18f)
+            {
+                bool a = Mathf.RoundToInt(t / 0.18f) % 2 == 0;
+                Set(B.ArmR, a ? -150 : -120, 0, a ? 40 : 70); Set(B.ForeR, a ? -40 : -10, 0, 0);
+                Set(B.ArmL, a ? -120 : -150, 0, a ? -70 : -40); Set(B.ForeL, a ? -10 : -40, 0, 0);
+                Set(B.Head, -10, a ? 12 : -12, 0);
+                if (a) _hopVel = 0.22f;
+                yield return Wait(0.18f);
+            }
+            Rest();
+        }
+
+        /// <summary>Possessed: hunched forward, clawed arms raised wide. Holds until another gesture.</summary>
+        public void Menace() { Play(MenaceRoutine()); }
+        IEnumerator MenaceRoutine()
+        {
+            Rest(); _wandOut = false;
+            Set(B.Chest, 22, 0, 0); Set(B.Head, -18, 0, 0); Set(B.Hips, 8, 0, 0);
+            while (true)
+            {
+                Set(B.ArmR, -135, 0, 55); Set(B.ForeR, -55, 0, 0); Set(B.HandR, 40, 0, 0);
+                Set(B.ArmL, -135, 0, -55); Set(B.ForeL, -55, 0, 0); Set(B.HandL, 40, 0, 0);
+                yield return Wait(0.9f);
+                Set(B.ArmR, -115, 0, 70); Set(B.ForeR, -70, 0, 0);
+                Set(B.ArmL, -115, 0, -70); Set(B.ForeL, -70, 0, 0);
+                yield return Wait(0.9f);
+            }
+        }
+
+        /// <summary>Fighting it from inside: hands clutching his head, which shakes.</summary>
+        public void Struggle() { Play(StruggleRoutine()); }
+        IEnumerator StruggleRoutine()
+        {
+            Rest();
+            Set(B.ArmR, -150, 0, 30); Set(B.ForeR, -110, 0, 0);
+            Set(B.ArmL, -150, 0, -30); Set(B.ForeL, -110, 0, 0);
+            Set(B.Chest, 12, 0, 0);
+            yield break;
+        }
+
+        /// <summary>Sheepish: a hand rubs the back of his neck, a small embarrassed bow.</summary>
+        public float Sheepish()
+        {
+            Play(SheepishRoutine());
+            return 2.0f;
+        }
+        IEnumerator SheepishRoutine()
+        {
+            Rest();
+            Set(B.ArmR, -150, 0, 20); Set(B.ForeR, -120, 0, 0); Set(B.Head, 12, 0, -10);
+            for (int i = 0; i < 3; i++) { Set(B.ForeR, i % 2 == 0 ? -125 : -105, 0, 0); yield return Wait(0.25f); }
+            Set(B.Hips, 14, 0, 0); Set(B.Chest, 10, 0, 0);
+            yield return Wait(0.8f);
+            Rest();
+        }
+
+        /// <summary>Grabbed from below: arms up and reaching, legs kicking.</summary>
+        public void Dragged() { Play(DraggedRoutine()); }
+        IEnumerator DraggedRoutine()
+        {
+            Rest();
+            for (int i = 0; ; i++)
+            {
+                Set(B.ArmR, -170, 0, i % 2 == 0 ? 10 : 30); Set(B.ArmL, -170, 0, i % 2 == 0 ? -30 : -10);
+                Set(B.LegR, i % 2 == 0 ? -30 : 10, 0, 0); Set(B.LegL, i % 2 == 0 ? 10 : -30, 0, 0);
+                Set(B.Head, -30, 0, 0);
+                yield return Wait(0.14f);
+            }
         }
 
         void HandClosed(bool closed)

@@ -11,6 +11,7 @@ namespace Parlor
         BorrowedCoin,
         PalmCoin,
         Lesson,
+        Mishap,          // act two: the trick goes wrong, the user holds the door and banishes the monster
         CardFinale,
         CurtainCall,
         Encore,
@@ -34,7 +35,7 @@ namespace Parlor
 
     public static class ShowGraph
     {
-        public const float Hint = 6f, Alt = 15f, Auto = 30f;
+        public const float Hint = 5f, Alt = 12f, Auto = 24f;   // brisker than before: dead air read as boring
 
         static readonly Dictionary<ShowState, BeatSpec> Specs = new Dictionary<ShowState, BeatSpec>
         {
@@ -44,7 +45,8 @@ namespace Parlor
             { ShowState.GazeCardPick, new BeatSpec(ShowState.GazeCardPick, ShowState.BorrowedCoin, Hint, Alt, Auto) },
             { ShowState.BorrowedCoin, new BeatSpec(ShowState.BorrowedCoin, ShowState.PalmCoin,     Hint, Alt, Auto) },
             { ShowState.PalmCoin,     new BeatSpec(ShowState.PalmCoin,     ShowState.Lesson,       Hint, Alt, Auto, cuttable: true) },
-            { ShowState.Lesson,       new BeatSpec(ShowState.Lesson,       ShowState.CardFinale,   Hint, Alt, Auto) },
+            { ShowState.Lesson,       new BeatSpec(ShowState.Lesson,       ShowState.Mishap,       Hint, Alt, Auto) },
+            { ShowState.Mishap,       new BeatSpec(ShowState.Mishap,       ShowState.CardFinale,   Hint, Alt, Auto) },
             { ShowState.CardFinale,   new BeatSpec(ShowState.CardFinale,   ShowState.CurtainCall,  Hint, Alt, Auto) },
             { ShowState.CurtainCall,  new BeatSpec(ShowState.CurtainCall,  ShowState.Encore,       Hint, Alt, Auto) },
             // Encore is the resting state: the show is complete. Poking the token restarts at Arrival.

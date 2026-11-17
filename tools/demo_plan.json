@@ -1,0 +1,212 @@
+{
+ "segments": [
+  {
+   "card": 3.6,
+   "still": "beat GazeCardPick+3.5",
+   "lines": [
+    [
+     "PARLOR",
+     "title",
+     150,
+     "gold",
+     250
+    ],
+    [
+     "The Borrowed Coin",
+     "italic",
+     50,
+     "cream",
+     430
+    ],
+    [
+     "A tiny magician performs a magic show on YOUR real table.",
+     "body",
+     40,
+     "cream",
+     560
+    ],
+    [
+     "You are his volunteer: bare hands, no controllers.",
+     "body",
+     40,
+     "cream",
+     620
+    ],
+    [
+     "Mixed reality for Meta Quest  ·  one continuous take of the real build, recorded in Meta XR Simulator",
+     "body",
+     26,
+     "dim",
+     760
+    ]
+   ]
+  },
+  {
+   "from": "beat Arrival+0.4",
+   "to": "arrival took-0.3",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "Sit at your own table. A trapdoor opens in it and the magician rises.",
+   "shows": "Scene understanding finds the real table and anchors the stage on it."
+  },
+  {
+   "from": "beat GazeCardPick",
+   "to": "beat BorrowedCoin-0.2",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "Don't touch. Just LOOK at one card.",
+   "shows": "Head gaze reads which card you chose. No cursor, no pointer."
+  },
+  {
+   "from": "beat BorrowedCoin",
+   "to": "gate coin.pick open+1.5",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "He lends you a coin. Pinch it up.",
+   "shows": "Hand tracking: pinch to grab."
+  },
+  {
+   "from": "gate coin.pick →-1.0",
+   "to": "say coin.watch",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "Carry it and set it down anywhere.",
+   "shows": "Pinch, carry, release: it lands on the real tabletop."
+  },
+  {
+   "from": "say coin.watch",
+   "to": "beat PalmCoin-0.1",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "The table opens under YOUR coin. Lean in and look down.",
+   "shows": "A lit theatre under your real table. He catches the coin far below."
+  },
+  {
+   "from": "beat PalmCoin",
+   "to": "beat PalmCoin+1.4",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "Open your palm. The coin appears in it.",
+   "shows": "Palm-up pose detection; the coin rides your hand."
+  },
+  {
+   "from": "gate palm.offer →-0.9",
+   "to": "beat Lesson-0.1",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "Open your palm. The coin appears in it.",
+   "shows": "Palm-up pose detection; the coin rides your hand."
+  },
+  {
+   "from": "beat Lesson",
+   "to": "gate lesson.close open+1.0",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "He teaches you a real trick: the Vanish.",
+   "shows": "You learn a move now. You will need it later."
+  },
+  {
+   "from": "gate lesson.close →-0.8",
+   "to": "beat Mishap-0.1",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "Close your fist... open it. Gone!",
+   "shows": "Fist and open-hand poses. \"Remember that move.\""
+  },
+  {
+   "from": "beat Mishap",
+   "to": "gate mishap.hold open+1.2",
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "Something under the table steals the coin. The lights flicker.",
+   "shows": "The story turns: your real room dims around the show."
+  },
+  {
+   "from": "gate mishap.hold →-3.7",
+   "to": "monster rises-0.2",
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "Hold the trapdoor shut with both hands!",
+   "shows": "A two-handed hold, tracked while it bangs. It bursts open anyway."
+  },
+  {
+   "from": "monster rises-0.2",
+   "to": "gate mishap.close open+1.0",
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "He comes back possessed. Your room goes dark.",
+   "shows": "Passthrough dimmed; his giant shadow is thrown on your real wall."
+  },
+  {
+   "from": "gate mishap.close →-1.0",
+   "to": "beat CardFinale-0.6",
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "Banish it with the move he taught you: fist, then open!",
+   "shows": "The lesson pays off. The stolen coin lands back in your hand."
+  },
+  {
+   "from": "beat CardFinale",
+   "to": "gate finale.lift open+0.9",
+   "act": "ACT 3  ·  THE FINALE",
+   "do": "Cover the velvet case with a flat hand.",
+   "shows": "Palm-down cover gesture over a virtual prop."
+  },
+  {
+   "from": "gate finale.lift →-0.5",
+   "to": "beat CurtainCall-1.2",
+   "act": "ACT 3  ·  THE FINALE",
+   "do": "Lift it: empty! Your card rises from under the table.",
+   "shows": "The card you chose with your eyes, revealed."
+  },
+  {
+   "from": "beat CurtainCall",
+   "to": "gate curtain.bow open+1.0",
+   "act": "ACT 3  ·  THE FINALE",
+   "do": "You saved the show. Take a bow.",
+   "shows": "Velvet curtains drop over your real wall."
+  },
+  {
+   "from": "gate curtain.bow →-0.6",
+   "to": "gate curtain.bow →+2.4",
+   "act": "ACT 3  ·  THE FINALE",
+   "do": "A nod of your head is the bow.",
+   "shows": "Head pose as input. The audience throws roses."
+  },
+  {
+   "from": "beat Encore",
+   "to": "say encore.again+0.8",
+   "act": "TOMORROW NIGHT",
+   "do": "Come back tomorrow: he knocks from the same spot.",
+   "shows": "A spatial anchor remembers your table. Three nights, three different shows."
+  },
+  {
+   "card": 3.6,
+   "still": "say encore.tomorrow+1.0",
+   "lines": [
+    [
+     "PARLOR",
+     "title",
+     140,
+     "gold",
+     230
+    ],
+    [
+     "A magic show that needs your table, your hands and your room.",
+     "body",
+     40,
+     "cream",
+     420
+    ],
+    [
+     "Scene understanding  ·  hand tracking  ·  head gaze  ·  passthrough  ·  spatial anchors",
+     "body",
+     32,
+     "cream",
+     520
+    ],
+    [
+     "Seated  ·  about five minutes  ·  three nights of different tricks",
+     "body",
+     30,
+     "dim",
+     610
+    ],
+    [
+     "Hands only. Any table.",
+     "italic",
+     44,
+     "gold",
+     730
+    ]
+   ]
+  }
+ ]
+}

@@ -15,7 +15,16 @@ MODEL = "gemini-3.8-flash-tts"
 VOICE = os.environ.get("PARLOR_VOICE", "Algieba")
 STYLE = ("Voice a tiny Victorian stage magician performing a close-up magic show: warm, twinkling, theatrical, "
          "a touch conspiratorial, crisp English diction, unhurried. Say only the transcript, exactly as written.")
-SRC = pathlib.Path(__file__).resolve().parent.parent / "PARLOR/Assets/Parlor~/Scripts/Core/NightProgram.cs"
+SRC = pathlib.Path(__file__).resolve().parent.parent / "PARLOR/Assets/Parlor/Scripts/Core/NightProgram.cs"
+# Lines spoken by the thing that possesses him: same voice, played as a pantomime villain.
+STYLES = {
+    "vo_mishap_monster": ("Voice a pantomime villain possessing a tiny stage magician: slow, deep, growling, gleefully menacing, "
+                          "comic rather than truly frightening, leaning hard on the capitalised words. Say only the transcript, exactly as written."),
+    "vo_mishap_dragged": ("Voice a tiny Victorian stage magician being dragged away by a monster: rising comic panic, fast, "
+                          "breathless, ending in a squeak. Say only the transcript, exactly as written."),
+    "vo_mishap_help": ("Voice a tiny Victorian stage magician whispering urgently from inside a monster that has possessed him: "
+                       "a hoarse stage whisper, quick, comic. Say only the transcript, exactly as written."),
+}
 client = genai.Client()
 
 
@@ -47,7 +56,8 @@ def say(name, text, out):
              types.VoiceConfig(prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=VOICE)))
     cfg = types.GenerateContentConfig(temperature=1, response_modalities=["audio"],
                                       speech_config=types.SpeechConfig(voice_config=voice))
-    contents = [types.Content(role="user", parts=[types.Part.from_text(text=STYLE + "\n\n## Transcript:\n" + text)])]
+    style = STYLES.get(name, STYLE)
+    contents = [types.Content(role="user", parts=[types.Part.from_text(text=style + "\n\n## Transcript:\n" + text)])]
     err = ""
     for _ in range(8):
         try:

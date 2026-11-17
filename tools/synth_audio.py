@@ -284,7 +284,78 @@ VOICES = {
 }
 
 
-def main(out):
+# ---------- the Mishap (act two) ----------
+
+def bang():
+    """Something heavy slamming up into the underside of the trapdoor: a deep wooden thud, a crack, the latch rattling."""
+    s = env_exp(partials(0.9, [58, 92, 147, 233], [1, .8, .5, .25], [.18, .13, .09, .05]), 0.35, 0.001)
+    mix(s, env_exp(biquad(noise(0.3), "bp", 650, 0.9), 0.05), 0, 1.4)
+    mix(s, env_exp(biquad(noise(0.06), "bp", 2400, 2.5), 0.01), 0.004, 0.7)
+    for k, t in enumerate((0.09, 0.15, 0.2, 0.24, 0.27)):    # latch chatter
+        mix(s, env_exp(biquad(noise(0.04), "bp", 3200 - 200 * k, 4), 0.006), t, 0.45 * (0.75 ** k))
+    return reverb(s, 0.6, 0.25)
+
+
+def growl(sec=1.7):
+    """A low, rough, wet growl: a pulse train near 70 Hz, roughened at 23 Hz, through two moving formants."""
+    n = int(sec * SR); out = []; ph = 0.0
+    for i in range(n):
+        t = i / n
+        f = 62 + 22 * math.sin(math.pi * t) + 6 * math.sin(TAU * 3.1 * t)
+        ph += f / SR
+        rough = 0.6 + 0.4 * math.sin(TAU * 23 * i / SR + 2 * math.sin(TAU * 7 * i / SR))
+        out.append(((ph % 1.0) * 2 - 1) * rough * math.sin(math.pi * t) ** 0.7)
+    a = biquad(out, "bp", 340, 1.6); b = biquad(out, "bp", 820, 2.2)
+    s = [x + 0.6 * y for x, y in zip(a, b)]
+    mix(s, [v * math.sin(math.pi * i / n) ** 2 for i, v in enumerate(biquad(noise(sec), "bp", 500, 1.2))], 0, 0.25)
+    return reverb(s, 0.8, 0.3)
+
+
+def rumble(sec=3.2):
+    """Deep rumble from under the floor: filtered noise plus a 41 Hz sub, swelling in and out."""
+    n = int(sec * SR)
+    s = biquad(biquad(noise(sec), "lp", 140), "lp", 140)
+    s = [x * 3.0 + 0.5 * math.sin(TAU * 41 * i / SR) for i, x in enumerate(s)]
+    return [x * math.sin(math.pi * i / n) ** 1.2 for i, x in enumerate(s)]
+
+
+def buzz(sec=1.4):
+    """The house lights failing: mains hum with crackling arcs."""
+    n = int(sec * SR); s = []
+    for i in range(n):
+        t = i / SR
+        hum = math.copysign(abs(math.sin(TAU * 100 * t)) ** 0.3, math.sin(TAU * 100 * t)) * 0.25
+        s.append(hum * (0.5 + 0.5 * math.sin(TAU * 2.6 * t)))
+    s = biquad(s, "lp", 2400)
+    for _ in range(22):                                       # arcs
+        at = rnd.uniform(0, sec - 0.05)
+        mix(s, env_exp(biquad(noise(0.03), "hp", 2500), 0.004), at, rnd.uniform(0.4, 1.0))
+    return s
+
+
+def poof():
+    """The Vanish blows the monster away: a bright burst sweeping down, with a glittering tail."""
+    n = int(0.9 * SR); src = noise(0.9); out = []; lp = 0.0
+    for i in range(n):
+        t = i / n; f = 4200 * (1 - t) + 300
+        a = 1 - math.exp(-TAU * f / SR); lp += a * (src[i] - lp)
+        out.append(lp * (1 - t) ** 1.5)
+    s = biquad(out, "hp", 150)
+    mix(s, shimmer(1.2), 0.08, 0.5)
+    return reverb(s, 1.0, 0.35)
+
+
+def sting():
+    """The transformation: a low, dissonant cluster with a tremolo, swelling then dying away."""
+    fs = [midi(36), midi(37), midi(43), midi(49), midi(55)]
+    s = partials(3.2, fs, [1, .8, .6, .45, .3], [1.6, 1.4, 1.2, 1.0, .8], vib=0.004)
+    n = len(s)
+    s = [x * min(1.0, i / (0.25 * SR)) * (0.75 + 0.25 * math.sin(TAU * 6 * i / SR)) for i, x in enumerate(s)]
+    mix(s, env_exp(partials(1.2, [midi(24), midi(31)], [1, .6], [.6, .4]), 0.5), 0, 0.8)
+    return reverb(s, 1.6, 0.4)
+
+
+def main(out, only=()):
     os.makedirs(out, exist_ok=True)
     jobs = {
         "coin_chime": lambda: coin_chime(),
@@ -294,14 +365,17 @@ def main(out):
         "wand_tap": wand_tap, "card_flip": card_flip, "curtain": lambda: curtain(), "bird": bird,
         "applause_small": lambda: applause(4.0, 16), "applause_big": lambda: applause(6.5, 42),
         "fanfare": fanfare, "music_loop": music_loop,
+        "bang": bang, "growl": lambda: growl(), "rumble": lambda: rumble(), "buzz": lambda: buzz(), "poof": poof, "sting": sting,
     }
     for name, (pat, pitch) in VOICES.items():
         jobs[name] = (lambda p=pat, f=pitch: voice(p, f))
     for name, fn in jobs.items():
+        if only and name not in only: continue
         s = fn()
         write(os.path.join(out, name + ".wav"), s, 0.5 if name == "music_loop" else 0.89)
         print(f"{name}.wav {len(s) / SR:.2f}s")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    # synth_audio.py <out_dir> [names...]: all sounds, or only the named ones (existing files are left alone)
+    main(sys.argv[1], set(sys.argv[2:]))

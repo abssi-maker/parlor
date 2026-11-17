@@ -23,6 +23,8 @@ namespace Parlor
         float _duckUntil;
         bool _spatializer;
         public bool Muted;
+        /// <summary>Pitch for recorded lines (1 = as recorded). Lowered for the possessed magician's voice.</summary>
+        public float VoicePitch = 1f;
         /// <summary>Last clip names played, newest last. Read by tests and by the build log.</summary>
         public readonly List<string> History = new List<string>();
 
@@ -99,7 +101,7 @@ namespace Parlor
         }
 
         /// <summary>Length of the recorded line in seconds, 0 if only the wordless fallback exists.</summary>
-        public float SpokenLength(Line line) { var c = VoiceClip(line, out bool spoken); return spoken ? c.length : 0f; }
+        public float SpokenLength(Line line) { var c = VoiceClip(line, out bool spoken); return spoken ? c.length / Mathf.Max(0.5f, VoicePitch) : 0f; }
 
         /// <summary>Speaks a line from the given position and ducks the music under it.</summary>
         public float Say(Line line, Vector3 worldPos)
@@ -108,11 +110,12 @@ namespace Parlor
             History.Add(clip ? clip.name : ""); if (History.Count > 64) History.RemoveAt(0);
             if (!clip || Muted) return 0f;
             _voice.transform.position = worldPos;
-            _voice.pitch = spoken ? 1f : Random.Range(0.97f, 1.04f);
+            _voice.pitch = spoken ? Mathf.Max(0.5f, VoicePitch) : Random.Range(0.97f, 1.04f);
             _voice.clip = clip; _voice.volume = spoken ? 1f : 0.9f;
             _voice.Play();
-            _duckUntil = Time.time + clip.length + 0.35f;
-            return clip.length;
+            float len = clip.length / Mathf.Abs(_voice.pitch);
+            _duckUntil = Time.time + len + 0.35f;
+            return len;
         }
 
         public bool VoicePlaying => _voice && _voice.isPlaying;

@@ -15,7 +15,7 @@ namespace Parlor
     }
 
     /// <summary>
-    /// Runs the show: Placement → Arrival → GazeCardPick → BorrowedCoin → PalmCoin → Lesson → CardFinale →
+    /// Runs the show: Placement → Arrival → GazeCardPick → BorrowedCoin → PalmCoin → Lesson → Mishap → CardFinale →
     /// CurtainCall → Encore. ShowModel decides the order; this class stages each beat.
     ///
     /// Rules every beat follows:
@@ -39,6 +39,10 @@ namespace Parlor
         public WallCurtainStager Curtains;
         public TitleCard Title;
         public BirdProp Bird;
+        public RoomDimmer Dimmer;
+        public WallShadow Shadow;
+        public ShadowClaw Claw;
+        public IRoomSource Room;                     // scanned objects, so he never lands inside a real one
         public IHandSource Hands;
         public IHeadSource Head;
         public StageSite Site = new StageSite();
@@ -67,7 +71,7 @@ namespace Parlor
 
         CardProp[] _cards = new CardProp[3];
         CardProp _bigCard;
-        ParticleSystem _sparkle, _dust, _roses;
+        ParticleSystem _sparkle, _dust, _roses, _smoke;
         Vector3 _portalHome;
         float _handsLostFor, _lastHandsNag;
         bool _resumePending;
@@ -86,6 +90,7 @@ namespace Parlor
             _sparkle = Sparkles.Create(Stage, "Sparkle", new Color(1f, 0.84f, 0.45f, 0.9f), 0.012f, 0.9f, 220);
             _dust = Sparkles.Create(Stage, "Dust", new Color(1f, 0.9f, 0.7f, 0.35f), 0.004f, 5f, 40);
             _roses = Sparkles.Create(Stage, "Roses", new Color(0.95f, 0.10f, 0.16f, 0.95f), 0.030f, 2.6f, 60, portalClipped: false, gravity: 0.25f);
+            _smoke = Sparkles.Create(Stage, "Smoke", new Color(0.42f, 0.12f, 0.55f, 0.75f), 0.022f, 1.4f, 120, portalClipped: false, gravity: -0.04f);
             for (int i = 0; i < 3; i++)
             {
                 _cards[i] = CardProp.Create(Stage, Night.Cards[i]);
@@ -121,6 +126,7 @@ namespace Parlor
                     case ShowState.BorrowedCoin: yield return BorrowedCoin(); break;
                     case ShowState.PalmCoin: yield return PalmCoin(); break;
                     case ShowState.Lesson: yield return Lesson(); break;
+                    case ShowState.Mishap: yield return Mishap(); break;
                     case ShowState.CardFinale: yield return CardFinale(); break;
                     case ShowState.CurtainCall: yield return CurtainCall(); break;
                     case ShowState.Encore: yield return Encore(); break;
@@ -155,7 +161,13 @@ namespace Parlor
 
         public void SkipBeat() { if (ActiveGate != null) ActiveGate.Complete(); }
 
-        void Note(string msg) { Log?.Invoke(msg); Debug.Log("[PARLOR] " + msg); }
+        void Note(string msg)
+        {
+            Log?.Invoke(msg); Debug.Log("[PARLOR] " + msg);
+#if UNITY_EDITOR
+            DevAudioRecorder.Event(msg);
+#endif
+        }
 
         // ------------------------------------------------------------------ canonical beat start
 
@@ -178,6 +190,16 @@ namespace Parlor
             Magician.Idle();
             Magician.Talking = false;
             Magician.RightHand.localScale = Vector3.one;
+            Magician.SetMonster(false, true);
+            Magician.SetShake(0f);
+            // after the scuffle his hat stays crooked for the rest of the night
+            Magician.SetHatAskew(state == ShowState.CardFinale || state == ShowState.CurtainCall ? 22f : 0f);
+            if (Audio) Audio.VoicePitch = 1f;
+            if (Dimmer) { Dimmer.SetTint(new Color(0.10f, 0f, 0.02f)); Dimmer.SetLevel(0f, 1f, true); }
+            if (Shadow) Shadow.HideImmediate();
+            if (Claw) { Claw.gameObject.SetActive(false); Claw.SetGrip(0f); }
+            Portal.SetSeam(false);
+            Captions.transform.localPosition = Layout.Caption;
 
             bool propsOut = onStage;
             Case.gameObject.SetActive(propsOut);
@@ -190,7 +212,7 @@ namespace Parlor
             if (Bird) Bird.Hide();
 
             // from PalmCoin on, the magician is holding the coin
-            bool held = state == ShowState.PalmCoin || state == ShowState.Lesson;
+            bool held = state == ShowState.PalmCoin || state == ShowState.Lesson || state == ShowState.Mishap;
             Coin.Spin = 0f; Coin.SetGlow(0f);
             if (held) GiveCoinToMagician(); else { Coin.transform.SetParent(Stage, false); Coin.SetVisible(false); }
 
@@ -228,6 +250,7 @@ namespace Parlor
         /// <summary>Caption + voice + talking animation. Waits until the line has been said.</summary>
         IEnumerator Say(string id, float extraHold = 0f)
         {
+            Note("say " + id);
             var line = Timed(id, out float voice);
             float dur = Captions.Show(line);
             if (Audio) Audio.Say(line, MagicianHead);
@@ -242,6 +265,7 @@ namespace Parlor
         /// <summary>Caption + voice without waiting (the caller carries on while it shows).</summary>
         void SayNow(string id)
         {
+            Note("say " + id);
             var line = Timed(id, out float voice);
             Captions.Show(line);
             if (Audio) Audio.Say(line, MagicianHead);
@@ -759,7 +783,7 @@ namespace Parlor
             Magician.Wave();
             SayNow("coin.lean");
             bool waved = false;
-            for (float t = 0; t < 4.5f; t += Time.deltaTime)
+            for (float t = 0; t < 3.4f; t += Time.deltaTime)
             {
                 Magician.LookTarget = Head.Head.position;
                 Vector3 headLocal = Portal.transform.InverseTransformPoint(Head.Head.position);
@@ -952,6 +976,280 @@ namespace Parlor
             Magician.Idle();
         }
 
+        // ------------------------------------------------------------------ act two: the Mishap
+
+        // The trick goes wrong. Something under the table steals the coin; the user holds the trapdoor shut with both
+        // hands; it bursts out anyway and possesses him; his giant shadow rises on the user's real wall; the user
+        // banishes it with the Vanish he just taught them. Every wait is a BeatGate and every set piece is cosmetic,
+        // so nothing here can softlock, and the beat can be entered cold (pause/resume, debug jump).
+        IEnumerator Mishap()
+        {
+            Vector3 up = Stage.up;
+            Transform P = Portal.transform;
+            Vector2 hs = Portal.FullHalfSize;
+            Vector3 under = P.TransformPoint(0, -0.05f, 0);
+            Magician.LookTarget = Head.Head.position;
+            Magician.Present();                       // one more proud look at the coin...
+            yield return new WaitForSeconds(0.7f);
+
+            // --- the snatch: a claw out of the corner gap the round stage leaves --------------------
+            Vector3 corner = P.TransformPoint(new Vector3(hs.x * 0.82f, 0, hs.y * 0.80f));
+            Vector3 anchor = P.TransformPoint(new Vector3(hs.x * 0.9f, -0.6f, hs.y * 1.1f));
+            Vector3 low = corner - up * 0.12f, rim = corner + up * 0.05f;
+            Claw.gameObject.SetActive(true);
+            Claw.SetGrip(0f);
+            Claw.Pose(low, anchor);
+            Sfx("growl", corner, 0.6f, 1.25f);
+            yield return Claw.Move(low, rim, anchor, 0.7f);
+            // the fingers flex over the rim and creep towards his hand; he hasn't noticed
+            Vector3 creep = Vector3.Lerp(rim, Coin.transform.position, 0.45f) + up * 0.03f;
+            yield return Claw.Move(rim, creep, anchor, 0.9f);
+            yield return new WaitForSeconds(0.35f);
+            rim = creep;
+            Vector3 coinAt = Coin.transform.position;
+            Sfx("whoosh", coinAt, 0.6f, 1.35f);
+            yield return Claw.Move(rim, coinAt - up * 0.012f, anchor, 0.22f);
+            Claw.SetGrip(1f);
+            Coin.transform.SetParent(Claw.Palm, true);
+            Sfx("trap_clack", coinAt, 0.6f, 1.8f);
+            Magician.Panic(1.4f);
+            yield return Claw.Move(Claw.transform.position, low - up * 0.25f, anchor, 0.35f);
+            Coin.SetVisible(false);
+            Coin.transform.SetParent(Stage, true);
+            Claw.gameObject.SetActive(false);
+            Magician.LookTarget = Head.Head.position;
+            yield return Say("mishap.hey");
+
+            // --- the lights stutter; knocking from below that isn't him ------------------------------
+            HouseLights?.Invoke(0.25f);
+            Dimmer.SetTint(new Color(0.06f, 0f, 0.03f));
+            Dimmer.Flicker(1.7f, 0.12f, 0.6f, 0.35f);
+            Sfx("buzz", Head.Head.position + up * 0.5f, 0.5f);
+            Magician.LookTarget = P.position;
+            for (int i = 0; i < 3; i++) { Sfx("knock", under, 1f, 0.78f - i * 0.04f); Sparkles.Burst(_smoke, P.position + up * 0.01f, 5, 0.04f); yield return new WaitForSeconds(0.34f); }
+            Magician.Ponder();
+            yield return Say("mishap.notme");
+
+            // --- he leaps off his stage onto the table, and the door slams ---------------------------
+            Vector3 side = SideSpot();
+            Sfx("whoosh", MagicianHead, 0.4f, 1.6f);
+            yield return HopMagicianTo(side, 0.45f);
+            Magician.LookTarget = P.position;
+            Sfx("trap_creak", P.position, 0.6f, 1.3f);
+            yield return Portal.AnimateOpen(0f, 0.3f);
+            Sfx("trap_clack", P.position, 1f);
+            Portal.SetSeam(true);                     // the shut door stays visible on the table: this is what the user holds
+            Portal.LiftY = LiftBottom;                // the stage drops away under the closed door: the pit is deep and dark
+
+            // --- hold it shut ------------------------------------------------------------------------
+            Magician.Panic(1.0f);
+            SayNow("mishap.hold");
+            var hold = new BeatGate(ShowGraph.Hint, ShowGraph.Alt, ShowGraph.Auto, 3.2f);
+            bool rattling = true;
+            StartCoroutine(Rattle(() => rattling, hold));
+            Vector3 door = P.position;
+            float radius = Mathf.Max(hs.x, hs.y) + 0.05f;
+            int need = OneHanded ? 1 : 2;
+            Func<bool, int> covering = loose =>
+            {
+                int n = 0;
+                for (int h = 0; h < 2; h++) if (PoseMath.CoversPoint(Hands.Get((Handed)h), door, up, radius, 0.14f, loose)) n++;
+                return n;
+            };
+            yield return RunGate("mishap.hold", hold,
+                () => covering(false) >= need,
+                () => covering(true) >= 1,
+                () => { if (covering(true) == 0) { Magician.Panic(1.0f); SayNow("mishap.hold"); } });
+
+            // "Whatever you do, don't let go! One... two..." and it bursts open on two anyway
+            Magician.LookTarget = Head.Head.position;
+            yield return Say("mishap.dontlet");
+            rattling = false;
+            yield return null;
+            Portal.SetSeam(false);
+            Note("door bursts");
+            Sfx("bang", under, 1f, 0.75f);
+            Sfx("trap_clack", P.position, 1f, 0.7f);
+            StartCoroutine(Portal.AnimateOpen(1f, 0.12f));
+            Sparkles.Burst(_smoke, P.position + up * 0.02f, 50, 0.22f);
+            Dimmer.SetLevel(0.88f, 3f);
+            HouseLights?.Invoke(0f);
+
+            // --- the claw takes him down -------------------------------------------------------------
+            Vector3 deep = P.TransformPoint(0, -1.4f, 0.12f);
+            Vector3 from = P.TransformPoint(0, -0.3f, 0);
+            Vector3 grab = Magician.transform.position + up * 0.10f;
+            Claw.gameObject.SetActive(true);
+            Claw.SetGrip(0f);
+            yield return Claw.Move(from, grab, deep, 0.28f);
+            Claw.SetGrip(1f);
+            Magician.Dragged();
+            SayNow("mishap.dragged");
+            Magician.transform.SetParent(Claw.Palm, true);
+            yield return Claw.Move(grab, P.TransformPoint(0, 0.06f, 0), deep, 0.45f);
+            yield return Claw.Move(Claw.transform.position, P.TransformPoint(0, -0.62f, 0.04f), deep, 0.5f);
+            Claw.gameObject.SetActive(false);
+            Sfx("rumble", under, 1f);
+            yield return new WaitForSeconds(1.0f);   // a beat of silence in the dark
+
+            // --- he comes back up. Changed. ----------------------------------------------------------
+            Magician.transform.SetParent(Portal.Lift, false);
+            Magician.transform.localPosition = Vector3.zero;
+            Magician.Face(180f, true);
+            Portal.AimLiftAt(Head.Head.position);
+            Portal.LiftY = LiftBottom;
+            Magician.SetMonster(true);
+            Magician.Menace();
+            Captions.transform.localPosition = Layout.Caption + Vector3.up * 0.17f;   // above the horns of a bigger him
+            Magician.LookTarget = Head.Head.position;
+            Dimmer.SetTint(new Color(0.18f, 0f, 0.03f));
+            Dimmer.SetLevel(0.8f, 1f);
+            Note("monster rises");
+            Sfx("sting", P.position, 1f);
+            Shadow.Show(Site, Head.Head);
+            StartCoroutine(Portal.AnimateLift(LiftTop, 2.2f));
+            Sfx("growl", P.TransformPoint(0, -0.2f, 0), 1f, 0.8f);
+            yield return new WaitForSeconds(1.8f);
+            if (Audio) Audio.VoicePitch = 0.88f;
+            yield return Say("mishap.monster");
+            if (Audio) Audio.VoicePitch = 1f;
+
+            // --- he fights it from inside: "Psst! It's me!" ------------------------------------------
+            Magician.Struggle();
+            Magician.SetShake(1f);
+            yield return Say("mishap.help");
+            Magician.SetShake(0.25f);
+            Magician.Menace();
+
+            // --- the Vanish, for real ----------------------------------------------------------------
+            Handed which = Handed.Right; HandSnapshot found = default;
+            SayNow("mishap.close");
+            var close = new BeatGate(ShowGraph.Hint, ShowGraph.Alt, ShowGraph.Auto, 0.25f);
+            yield return RunGate("mishap.close", close,
+                () => Hands.TryFind(h => PoseMath.Fist(h), out found, out which),
+                () => PoseMath.Fist(Hands.Get(which), true),
+                () => { Magician.Struggle(); Magician.SetShake(1f); SayNow("mishap.help"); });
+            Magician.SetShake(0.8f);
+            Shadow.Shudder(1f);
+            Sfx("growl", MagicianHead, 0.8f, 1.5f);
+            SayNow("mishap.open");
+            var open = new BeatGate(ShowGraph.Hint, ShowGraph.Alt, ShowGraph.Auto, 0.2f);
+            yield return RunGate("mishap.open", open,
+                () => PoseMath.Open(Hands.Get(which)),
+                () => PoseMath.Open(Hands.Get(which), true),
+                () => SayNow("mishap.open"));
+
+            // --- banished ----------------------------------------------------------------------------
+            bool tracked = Hands.Get(which).Tracked;
+            Vector3 palm = tracked ? PalmPoint(Hands.Get(which)) : Stage.TransformPoint(Layout.CoinLanding + Vector3.up * 0.12f);
+            Sfx("poof", palm, 1f);
+            Sfx("shimmer", MagicianHead, 1f, 0.9f);
+            Sparkles.Burst(_sparkle, palm, 40, 0.25f);
+            Sparkles.Burst(_sparkle, MagicianHead, 40, 0.2f);
+            Sparkles.Burst(_smoke, MagicianHead, 40, 0.18f);
+            StartCoroutine(Shadow.Banish());
+            Magician.SetShake(0f);
+            Magician.SetMonster(false);
+            Captions.transform.localPosition = Layout.Caption;
+            Magician.SetHatAskew(22f);
+            Magician.Idle();
+            Dimmer.SetLevel(0f, 1.1f);
+            HouseLights?.Invoke(0.5f);
+            Sfx("applause_big", P.TransformPoint(0, -0.4f, 0.2f), 0.9f);
+            StartCoroutine(AudienceBounce(4f));
+            yield return new WaitForSeconds(1.0f);
+            Magician.Sheepish();
+            yield return Say("mishap.ahem");
+
+            // and the stolen coin turns up in the hand that banished it
+            if (tracked && Hands.Get(which).Tracked)
+            {
+                Coin.transform.SetParent(Stage, false);
+                Coin.transform.position = PalmPoint(Hands.Get(which));
+                Coin.transform.localRotation = Quaternion.identity;
+                Coin.SetVisible(true);
+                Sfx("coin_chime", Coin.transform.position, 0.8f);
+                Sparkles.Burst(_sparkle, Coin.transform.position, 16, 0.08f);
+                SayNow("mishap.coin");
+                for (float t = 0; t < 2.6f; t += Time.deltaTime) { FollowPalm(which, true); yield return null; }
+                Sparkles.Burst(_sparkle, Coin.transform.position, 12, 0.06f);
+                Coin.SetVisible(false);
+            }
+            else yield return Say("mishap.coin");
+        }
+
+        /// <summary>A free spot on the table beside the trapdoor (away from the velvet case), in stage space.</summary>
+        Vector3 SideSpot()
+        {
+            Vector2 hs = Portal.FullHalfSize;
+            Vector3 c = Portal.transform.localPosition;
+            float caseSide = Mathf.Sign(Case.transform.localPosition.x - c.x);
+            Rect r = Table;
+            var boxes = new System.Collections.Generic.List<RoomBox>();
+            Room?.Obstacles(boxes);
+            float top = Stage.position.y;
+            bool Clear(Vector3 p)
+            {
+                if (!(p.x > r.xMin + 0.04f && p.x < r.xMax - 0.04f && p.z > r.yMin + 0.04f && p.z < r.yMax - 0.04f)) return false;
+                Vector3 w = Stage.TransformPoint(p);
+                foreach (var o in boxes)
+                    if (o.TopY > top + 0.015f && o.BottomY < top + 0.45f && o.ContainsXZ(w, 0.045f)) return false;   // a real object stands there
+                return true;
+            }
+            // beside the door (away from the case first), a little further out, then in front of it
+            foreach (float s in new[] { caseSide, -caseSide })
+                foreach (float extra in new[] { 0.075f, 0.12f })
+                    foreach (float z in new[] { -0.02f, -0.10f })
+                    {
+                        Vector3 p = c + new Vector3(s * (hs.x + extra), 0, z);
+                        if (Clear(p)) return p;
+                    }
+            Vector3 front = c + new Vector3(0, 0, -(hs.y + 0.065f));
+            return Clear(front) ? front : ClampToTable(front, 0.04f);
+        }
+
+        IEnumerator HopMagicianTo(Vector3 stagePoint, float seconds)
+        {
+            Magician.transform.SetParent(Stage, true);
+            Vector3 from = Magician.transform.localPosition;
+            for (float t = 0; t < seconds; t += Time.deltaTime)
+            {
+                float x = t / seconds;
+                Magician.transform.localPosition = Vector3.Lerp(from, stagePoint, x) + Vector3.up * (0.09f * 4f * x * (1f - x));
+                yield return null;
+            }
+            Magician.transform.localPosition = stagePoint;
+            Sfx("coin_land", Magician.transform.position, 0.5f, 0.6f);
+        }
+
+        /// <summary>The shut trapdoor bangs and jumps from below, light and smoke leaking through the slit, faster and faster.</summary>
+        IEnumerator Rattle(Func<bool> on, BeatGate gate)
+        {
+            Vector3 under = Portal.transform.TransformPoint(0, -0.05f, 0);
+            float next = 0f; bool steadied = false; int n = 0;
+            while (on())
+            {
+                next -= Time.deltaTime;
+                if (next <= 0f)
+                {
+                    n++;
+                    Sfx("bang", under, 0.8f, 0.85f + UnityEngine.Random.Range(-0.06f, 0.06f));
+                    Sparkles.Burst(_smoke, Portal.transform.position + Stage.up * 0.01f, 6, 0.06f);
+                    StartCoroutine(DoorJump(on));
+                    Portal.FlashSeam(1f);
+                    next = Mathf.Lerp(0.85f, 0.38f, Mathf.Clamp01(n / 10f));
+                }
+                if (!steadied && gate.Held > 1.2f) { steadied = true; SayNow("mishap.steady"); }
+                yield return null;
+            }
+        }
+
+        IEnumerator DoorJump(Func<bool> on)
+        {
+            for (float t = 0; t < 0.22f && on(); t += Time.deltaTime) { Portal.SetOpen(0.07f * Mathf.Sin(t / 0.22f * Mathf.PI)); yield return null; }
+            if (on()) Portal.SetOpen(0.012f);   // a sliver stays open: light leaks out round the user's fingers
+        }
+
         void FollowPalm(Handed which, bool active)
         {
             if (!active || !Coin.IsVisible) return;
@@ -1079,12 +1377,12 @@ namespace Parlor
                 Magician.Celebrate();
             }
             Magician.Bow();
-            yield return new WaitForSeconds(1.6f);
+            yield return new WaitForSeconds(1.0f);
 
             if (Curtains) yield return Curtains.Hide();
             if (_bigCard) _bigCard.gameObject.SetActive(false);
             yield return Portal.AnimateWiden(1f, 0.6f);
-            if (Title) { yield return Title.Show(Night.Title); yield return new WaitForSeconds(2.4f); yield return Title.Hide(); }
+            if (Title) { yield return Title.Show(Night.Title); yield return new WaitForSeconds(1.6f); yield return Title.Hide(); }
         }
 
         // The show is complete. Save the night, hint at tomorrow, and offer the encore.

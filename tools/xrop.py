@@ -106,6 +106,7 @@ def main():
                         elif len(f) >= 10 and f[0] == "S": CACHE["S %s %s" % (f[1], f[2])] = [float(v) for v in f[3:10]]; n += 1
                         elif len(f) >= 9 and f[0] == "L": CACHE["L " + f[1]] = [float(v) for v in f[2:9]]; n += 1
                         elif len(f) >= 8 and f[0] == "N": CACHE["N"] = [float(v) for v in f[1:8]]; n += 1
+                        elif len(f) >= 6 and f[0] == "Q": CACHE["Q " + f[1]] = [float(v) for v in f[2:6]]; n += 1
                     print("warm =>", n, "poses cached", flush=True); continue
                 if name == "shot":   # shot <file.png>: the Meta XR Simulator window (virtual content over the synthetic room)
                     import subprocess, os
@@ -128,6 +129,13 @@ def main():
                         # "open" takes no target: the point becomes the wrist position
                         args["wrist_position" if parts[1] == "open" else "target"] = [float(v) for v in xyz]; extra = extra[1:]
                     if extra: args.update(json.loads(" ".join(extra)))
+                    # "wrist_orientation": "flat" / "palmup": hand poses built on the stage's own axes (fingers pointing away
+                    # from the seated user), cached by "warm"
+                    wo = args.get("wrist_orientation")
+                    if isinstance(wo, str):
+                        q = CACHE.get("Q " + wo) or [float(v) for v in ev('return Parlor.DebugSeat.OpenXrHandRotation("%s");' % wo).split()]
+                        if len(q) != 4: print("hand => no orientation", wo, flush=True); continue
+                        args["wrist_orientation"] = q
                     print("hand", parts[0], parts[1], "=>", s.call("openxr_hand_gesture", args).replace("\n", " ")[:300], flush=True); continue
                 if name == "look":   # look @point [duration]: turn the simulated head towards a named point of the show
                     import subprocess
@@ -168,14 +176,16 @@ def main():
                     nums = line.split("|")[0].split()
                     if len(nums) != 7: print("seat => no usable table:", line[:200], flush=True); continue
                     v = [float(x) for x in nums]
-                    print("seat =>", line, s.call("openxr_set_head_pose", {"position": v[:3], "orientation": v[3:]}).replace("\n", " "), flush=True); continue
+                    hp = {"position": v[:3], "orientation": v[3:]}
+                    if len(parts) > 3: hp["duration_seconds"] = float(parts[3])   # seat idx pitch slide seconds: a smooth head move
+                    print("seat =>", line, s.call("openxr_set_head_pose", hp).replace("\n", " "), flush=True); continue
                 if name == "until":  # until <seconds> <text>: wait for a console line containing text
                     import subprocess
                     secs, _, text = rest.partition(" "); end = time.time() + float(secs)
                     while time.time() < end:
                         r = subprocess.run(["unity", "command", "console", "get", "--tail", "400"], capture_output=True, text=True)
                         if text in r.stdout: break
-                        time.sleep(1.5)
+                        time.sleep(0.5)
                     print("until", text, "=>", "seen" if time.time() < end else "TIMEOUT", flush=True); continue
                 o = None
                 if " --out " in rest: rest, _, o = rest.partition(" --out ")

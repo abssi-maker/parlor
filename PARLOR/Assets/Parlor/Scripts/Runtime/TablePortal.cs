@@ -102,6 +102,7 @@ namespace Parlor
             BuildRim();
             BuildLeaves();
             BuildLight();
+            BuildSeam();
             if (virtualTable) BuildVirtualTable(legHeight);
             Apply();
         }
@@ -162,6 +163,40 @@ namespace Parlor
             var p = new MeshKit();
             p.At(Vector3.up * 0.0006f).Ground(0.62f, 0.62f);
             _spot = p.ToObject("Spot", transform, Mats.Fx("spot", new Color(1f, 0.86f, 0.62f, 0.0f), additive: true, soft: 0.7f, clip: Mats.ClipHole, queueOffset: -1)).GetComponent<Renderer>();
+        }
+
+        // The shut door's outline drawn on the table (the Mishap: the user has to see the door they hold shut), plus a
+        // glow along the cracks that flares when something bangs from below.
+        Renderer _seam, _seamGlow;
+        float _seamGlowLevel;
+        void BuildSeam()
+        {
+            Vector2 h = FullHalfSize;
+            void Frame(MeshKit k, float w, float y)
+            {
+                k.Quad(new Vector3(-h.x - w, y, h.y), new Vector3(h.x + w, y, h.y), new Vector3(h.x + w, y, h.y + w), new Vector3(-h.x - w, y, h.y + w));
+                k.Quad(new Vector3(-h.x - w, y, -h.y - w), new Vector3(h.x + w, y, -h.y - w), new Vector3(h.x + w, y, -h.y), new Vector3(-h.x - w, y, -h.y));
+                k.Quad(new Vector3(-h.x - w, y, -h.y), new Vector3(-h.x, y, -h.y), new Vector3(-h.x, y, h.y), new Vector3(-h.x - w, y, h.y));
+                k.Quad(new Vector3(h.x, y, -h.y), new Vector3(h.x + w, y, -h.y), new Vector3(h.x + w, y, h.y), new Vector3(h.x, y, h.y));
+                // the centre line where the two leaves meet
+                k.Quad(new Vector3(-w * 0.5f, y, -h.y), new Vector3(w * 0.5f, y, -h.y), new Vector3(w * 0.5f, y, h.y), new Vector3(-w * 0.5f, y, h.y));
+            }
+            var s = new MeshKit(); s.Tint(Color.white); Frame(s, 0.0045f, 0.0007f);
+            _seam = s.ToObject("Seam", transform, Mats.Lit("seam", null, new Color(0.16f, 0.09f, 0.06f), clip: Mats.ClipNone, rim: 0f, unlit: 1f)).GetComponent<Renderer>();
+            var g = new MeshKit(); g.Tint(Color.white); Frame(g, 0.016f, 0.0010f);
+            _seamGlow = g.ToObject("SeamGlow", transform, Mats.Fx("seamglow", new Color(1f, 0.55f, 0.20f, 0f), additive: true)).GetComponent<Renderer>();
+            _seam.enabled = false; _seamGlow.enabled = false;
+        }
+
+        /// <summary>Shows the shut door's outline; glow = light leaking round it (0..1, decays by itself).</summary>
+        public void SetSeam(bool visible) { if (_seam) _seam.enabled = visible; if (!visible) { _seamGlowLevel = 0f; if (_seamGlow) _seamGlow.enabled = false; } }
+        public void FlashSeam(float level) { _seamGlowLevel = Mathf.Max(_seamGlowLevel, level); }
+
+        void UpdateSeamGlow()
+        {
+            if (!_seamGlow || !_seam || !_seam.enabled) return;
+            _seamGlowLevel = Mathf.MoveTowards(_seamGlowLevel, 0.25f, Time.deltaTime * 1.6f);   // a steady faint leak between flares
+            SetAlpha(_seamGlow, 0.85f * _seamGlowLevel);
         }
 
         // Tier 3: no real table, so the trapdoor opens in a small virtual parlour table instead.
@@ -232,6 +267,7 @@ namespace Parlor
 
         void LateUpdate()
         {
+            UpdateSeamGlow();
             if (!Mathf.Approximately(_spotLevel, _spotTarget))
             {
                 _spotLevel = Mathf.MoveTowards(_spotLevel, _spotTarget, Time.deltaTime * 1.2f);

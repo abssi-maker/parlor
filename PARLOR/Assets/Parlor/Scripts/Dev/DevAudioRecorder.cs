@@ -33,6 +33,15 @@ namespace Parlor
             return "recording " + _active._rate + " Hz to " + path;
         }
 
+        /// <summary>While recording, appends "epoch-seconds message" to "&lt;path&gt;.events" (beats and gates, for cutting the video).</summary>
+        public static void Event(string msg)
+        {
+            if (!_active || string.IsNullOrEmpty(_active._path)) return;
+            double now = (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+            try { File.AppendAllText(_active._path + ".events", now.ToString("F3", System.Globalization.CultureInfo.InvariantCulture) + " " + msg + "\n"); }
+            catch (IOException) { }
+        }
+
         public static string End()
         {
             if (!_active) return "not recording";
