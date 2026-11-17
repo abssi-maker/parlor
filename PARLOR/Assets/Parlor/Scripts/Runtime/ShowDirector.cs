@@ -1335,9 +1335,31 @@ namespace Parlor
             Room.Clutter(clutter);
             if (clutter.Count == 0) return false;
             float top = Stage.position.y;
+            // bin once (2 cm cells, world XZ): occupied cells, and the tallest sample per cell (no per-candidate scans)
+            const float cell = 0.02f;
+            var maxH = new System.Collections.Generic.Dictionary<Vector2Int, Vector3>();
+            foreach (var c in clutter)
+            {
+                var k = new Vector2Int(Mathf.FloorToInt(c.x / cell), Mathf.FloorToInt(c.z / cell));
+                if (!maxH.TryGetValue(k, out var h) || c.y > h.y) maxH[k] = c;
+            }
             var tall = new System.Collections.Generic.List<Vector3>();
-            foreach (var c in clutter) if (c.y > top + 0.06f) tall.Add(c);
+            foreach (var kv in maxH) if (kv.Value.y > top + 0.06f) tall.Add(kv.Value);
             if (tall.Count == 0) return false;
+            bool Occupied(Vector2 w, float r, bool tallOnly, out Vector3 nearest)
+            {
+                nearest = default; float best = float.MaxValue; int R = Mathf.CeilToInt(r / cell);
+                int cx = Mathf.FloorToInt(w.x / cell), cz = Mathf.FloorToInt(w.y / cell);
+                for (int dx = -R; dx <= R; dx++)
+                    for (int dz = -R; dz <= R; dz++)
+                    {
+                        if (!maxH.TryGetValue(new Vector2Int(cx + dx, cz + dz), out var c)) continue;
+                        if (tallOnly && c.y <= top + 0.06f) continue;
+                        float d = Vector2.Distance(new Vector2(c.x, c.z), w);
+                        if (d < r && d < best) { best = d; nearest = c; }
+                    }
+                return best < float.MaxValue;
+            }
             Vector3 eye = Head.Head.position;
             Vector3 door = Portal.transform.localPosition;
             Rect r = Table;
@@ -1347,36 +1369,26 @@ namespace Parlor
                 {
                     var p = new Vector3(x, 0, z);
                     float fromDoor = new Vector2(x - door.x, z - door.z).magnitude;
-                    if (fromDoor < Mathf.Max(Portal.FullHalfSize.x, Portal.FullHalfSize.y) + 0.05f || fromDoor > 0.40f) continue;
+                    if (fromDoor < Mathf.Max(Portal.FullHalfSize.x, Portal.FullHalfSize.y) + 0.05f || fromDoor > 0.40f || fromDoor >= bestScore) continue;
                     Vector3 w = Stage.TransformPoint(p);
                     Vector2 w2 = new Vector2(w.x, w.z), e2 = new Vector2(eye.x, eye.z);
-                    bool inside = false, beside = false, hidden = false;
-                    Vector3 near = default; float nearD = float.MaxValue;
-                    foreach (var c in clutter)
-                    {
-                        float d = Vector2.Distance(new Vector2(c.x, c.z), w2);
-                        if (d < 0.035f) { inside = true; break; }
-                    }
-                    if (inside) continue;
-                    foreach (var c in tall)
-                    {
-                        Vector2 c2 = new Vector2(c.x, c.z);
-                        float d = Vector2.Distance(c2, w2);
-                        if (d < 0.07f) { beside = true; if (d < nearD) { nearD = d; near = c; } }
-                        // between the user's eye and him: it would be in front of him
-                        Vector2 seg = w2 - e2; float len = seg.magnitude;
-                        if (len < 0.01f) continue;
-                        float along = Vector2.Dot(c2 - e2, seg / len);
-                        if (along > 0.02f && along < len - 0.02f && Mathf.Abs(seg.x * (c2.y - e2.y) - seg.y * (c2.x - e2.x)) / len < 0.04f) hidden = true;
-                    }
-                    if (!beside || hidden) continue;
-                    if (fromDoor < bestScore)
-                    {
-                        bestScore = fromDoor; spot = p;
-                        // lean towards the object: is it to his right or left as he faces the door?
-                        Vector3 toDoor = Stage.TransformPoint(door) - w, toObj = near - w;
-                        side = Mathf.Sign(Vector3.Dot(Vector3.Cross(Vector3.up, toDoor), toObj)) >= 0f ? -1f : 1f;
-                    }
+                    if (Occupied(w2, 0.035f, false, out _)) continue;                 // standing inside something
+                    if (!Occupied(w2, 0.07f, true, out Vector3 near)) continue;        // nothing tall right beside him
+                    // a tall object between the user's eye and him would be in front of him: passthrough can't hide him
+                    bool hidden = false;
+                    Vector2 seg = w2 - e2; float len = seg.magnitude;
+                    if (len > 0.01f)
+                        foreach (var c in tall)
+                        {
+                            Vector2 c2 = new Vector2(c.x, c.z);
+                            float along = Vector2.Dot(c2 - e2, seg / len);
+                            if (along > 0.02f && along < len - 0.02f && Mathf.Abs(seg.x * (c2.y - e2.y) - seg.y * (c2.x - e2.x)) / len < 0.04f) { hidden = true; break; }
+                        }
+                    if (hidden) continue;
+                    bestScore = fromDoor; spot = p;
+                    // lean towards the object: is it to his right or left as he faces the door?
+                    Vector3 toDoor = Stage.TransformPoint(door) - w, toObj = near - w;
+                    side = Mathf.Sign(Vector3.Dot(Vector3.Cross(Vector3.up, toDoor), toObj)) >= 0f ? -1f : 1f;
                 }
             return bestScore < float.MaxValue;
         }

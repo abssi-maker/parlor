@@ -131,31 +131,69 @@ namespace Parlor
         /// <summary>
         /// True when anything real stands inside the footprint (plus a 3 cm margin): scene-mesh points on the tabletop.
         /// </summary>
+        /// <summary>
+        /// Clutter samples binned into 2 cm cells (world XZ), built once per sample list. The footprint tests below visit
+        /// only the cells under the footprint: a placement search used to walk every sample for every candidate spot
+        /// (about 30 million steps on a busy table), which froze the first frame of the show for seconds.
+        /// </summary>
+        sealed class ClutterGrid
+        {
+            public const float Cell = 0.02f;
+            public readonly List<Vector3> Source;
+            readonly Dictionary<Vector2Int, int> _n = new Dictionary<Vector2Int, int>();
+            readonly int _count;
+            public ClutterGrid(List<Vector3> pts)
+            {
+                Source = pts; _count = pts.Count;
+                foreach (var w in pts)
+                {
+                    var k = new Vector2Int(Mathf.FloorToInt(w.x / Cell), Mathf.FloorToInt(w.z / Cell));
+                    _n.TryGetValue(k, out int c); _n[k] = c + 1;
+                }
+            }
+            public bool Stale(List<Vector3> pts) => pts != Source || pts.Count != _count;
+
+            /// <summary>Samples in cells whose centres lie inside the footprint (grown by margin); stops at the first if asked.</summary>
+            public int Count(Pose stagePose, Rect f, float margin, bool firstOnly)
+            {
+                if (_n.Count == 0) return 0;
+                Quaternion inv = Quaternion.Inverse(stagePose.rotation);
+                float x0 = f.xMin - margin, x1 = f.xMax + margin, z0 = f.yMin - margin, z1 = f.yMax + margin;
+                float minX = float.MaxValue, maxX = float.MinValue, minZ = float.MaxValue, maxZ = float.MinValue;
+                foreach (var c in new[] { new Vector3(x0, 0, z0), new Vector3(x1, 0, z0), new Vector3(x1, 0, z1), new Vector3(x0, 0, z1) })
+                {
+                    Vector3 w = stagePose.position + stagePose.rotation * c;
+                    minX = Mathf.Min(minX, w.x); maxX = Mathf.Max(maxX, w.x); minZ = Mathf.Min(minZ, w.z); maxZ = Mathf.Max(maxZ, w.z);
+                }
+                int n = 0;
+                for (int ix = Mathf.FloorToInt(minX / Cell); ix <= Mathf.FloorToInt(maxX / Cell); ix++)
+                    for (int iz = Mathf.FloorToInt(minZ / Cell); iz <= Mathf.FloorToInt(maxZ / Cell); iz++)
+                    {
+                        if (!_n.TryGetValue(new Vector2Int(ix, iz), out int c)) continue;
+                        Vector3 l = inv * (new Vector3((ix + 0.5f) * Cell, stagePose.position.y, (iz + 0.5f) * Cell) - stagePose.position);
+                        if (l.x > x0 && l.x < x1 && l.z > z0 && l.z < z1) { n += c; if (firstOnly) return n; }
+                    }
+                return n;
+            }
+        }
+        static ClutterGrid _grid;
+        static ClutterGrid Grid(List<Vector3> clutter)
+        {
+            if (_grid == null || _grid.Stale(clutter)) _grid = new ClutterGrid(clutter);
+            return _grid;
+        }
+
         /// <summary>How many clutter samples fall inside the footprint (2 cm samples: a rough area of overlap).</summary>
         public static int ClutterCount(Pose stagePose, List<Vector3> clutter)
         {
-            if (clutter == null) return 0;
-            Quaternion inv = Quaternion.Inverse(stagePose.rotation);
-            Rect f = Footprint; int n = 0;
-            foreach (var w in clutter)
-            {
-                Vector3 l = inv * (w - stagePose.position);
-                if (l.x > f.xMin && l.x < f.xMax && l.z > f.yMin && l.z < f.yMax) n++;
-            }
-            return n;
+            if (clutter == null || clutter.Count == 0) return 0;
+            return Grid(clutter).Count(stagePose, Footprint, 0f, false);
         }
 
         public static bool Cluttered(Pose stagePose, List<Vector3> clutter, float margin = 0.03f)
         {
             if (clutter == null || clutter.Count == 0) return false;
-            Quaternion inv = Quaternion.Inverse(stagePose.rotation);
-            Rect f = Footprint;
-            foreach (var w in clutter)
-            {
-                Vector3 l = inv * (w - stagePose.position);
-                if (l.x > f.xMin - margin && l.x < f.xMax + margin && l.z > f.yMin - margin && l.z < f.yMax + margin) return true;
-            }
-            return false;
+            return Grid(clutter).Count(stagePose, Footprint, margin, true) > 0;
         }
 
         /// <summary>Tier 3: the stage 40 cm below eye level, about half a metre ahead, facing away from the user.</summary>
