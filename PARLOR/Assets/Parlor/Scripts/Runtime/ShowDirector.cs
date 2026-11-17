@@ -248,8 +248,15 @@ namespace Parlor
         }
 
         /// <summary>Caption + voice + talking animation. Waits until the line has been said.</summary>
+        /// <summary>Lets the line being spoken finish (at most cap seconds), so the next one never cuts it off.</summary>
+        IEnumerator VoiceDone(float cap = 3f)
+        {
+            for (float w = 0; w < cap && Audio && Audio.VoicePlaying; w += Time.deltaTime) yield return null;
+        }
+
         IEnumerator Say(string id, float extraHold = 0f)
         {
+            yield return VoiceDone();
             Note("say " + id);
             var line = Timed(id, out float voice);
             float dur = Captions.Show(line);
@@ -491,6 +498,7 @@ namespace Parlor
             // The measurement. Nothing is drawn: no cursor, no highlight.
             var picker = new GazeDwellPicker(3);
             Vector3[] world = new Vector3[3];
+            float[] lean = new float[3];
             SayNow("gaze.remember");
             Magician.LookTarget = null;
             for (float t = 0; t < 4.0f; t += Time.deltaTime)
@@ -499,8 +507,16 @@ namespace Parlor
                 // People glance along the row first and then settle on their card, so later looking counts for more
                 // (about four times as much at the end as at the start).
                 picker.Accumulate(Head.Head, world, Stage.up, Time.deltaTime * Mathf.Lerp(0.35f, 1.5f, t / 4.0f));
-                // the cards breathe a little so the wait feels alive
-                for (int i = 0; i < 3; i++) _cards[i].transform.localPosition = slots[i] + Vector3.up * (Mathf.Sin(Time.time * 1.7f + i) * 0.004f);
+                // the cards breathe, and the one you are looking at leans in to meet your eyes: no cursor, but you can
+                // feel the look being read
+                for (int i = 0; i < 3; i++)
+                {
+                    Vector3 to = (world[i] - Head.Head.position).normalized;
+                    float k = Mathf.Clamp01(1f - Vector3.Angle(Head.Head.forward, to) / 10f);
+                    lean[i] = Mathf.Lerp(lean[i], k, 1f - Mathf.Exp(-6f * Time.deltaTime));
+                    _cards[i].transform.localPosition = slots[i] + Vector3.up * (Mathf.Sin(Time.time * 1.7f + i) * 0.004f + 0.016f * lean[i]);
+                    _cards[i].transform.localScale = Vector3.one * (1f + 0.10f * lean[i]);
+                }
                 yield return null;
             }
             int pick = picker.Pick(out bool ambiguous);
@@ -626,6 +642,7 @@ namespace Parlor
                 Coin.transform.SetParent(Stage, true);
 
                 // --- carry it, then set it down anywhere ------------------------------------
+                yield return VoiceDone(2.5f);
                 SayNow("coin.place");
                 float heldFor = 0f; bool released = false;
                 var place = NewGate(0.12f);
@@ -900,6 +917,7 @@ namespace Parlor
                     () => Hands.TryFind(h => PoseMath.PalmUpOpen(h, true), out found, out which),
                     () => { Magician.ShowHands(); SayNow("palm.offer"); });
                 handed = offer.Result == GateEvent.Success || offer.Result == GateEvent.AltSuccess;
+                yield return VoiceDone(2.5f);
                 if (offer.Result == GateEvent.AltSuccess) which = Hands.Get(Handed.Right).IsPinching ? Handed.Right : Handed.Left;
                 if (handed)
                 {
@@ -1023,7 +1041,7 @@ namespace Parlor
             // --- the lights stutter; knocking from below that isn't him ------------------------------
             HouseLights?.Invoke(0.25f);
             Dimmer.SetTint(new Color(0.06f, 0f, 0.03f));
-            Dimmer.Flicker(1.7f, 0.12f, 0.6f, 0.35f);
+            Dimmer.Flicker(2.0f, 0.05f, 0.78f, 0.4f);
             Sfx("buzz", Head.Head.position + up * 0.5f, 0.5f);
             Magician.LookTarget = P.position;
             for (int i = 0; i < 3; i++) { Sfx("knock", under, 1f, 0.78f - i * 0.04f); Sparkles.Burst(_smoke, P.position + up * 0.01f, 5, 0.04f); yield return new WaitForSeconds(0.34f); }
@@ -1187,6 +1205,8 @@ namespace Parlor
             Rect r = Table;
             var boxes = new System.Collections.Generic.List<RoomBox>();
             Room?.Obstacles(boxes);
+            var clutter = new System.Collections.Generic.List<Vector3>();
+            Room?.Clutter(clutter);
             float top = Stage.position.y;
             bool Clear(Vector3 p)
             {
@@ -1194,6 +1214,8 @@ namespace Parlor
                 Vector3 w = Stage.TransformPoint(p);
                 foreach (var o in boxes)
                     if (o.TopY > top + 0.015f && o.BottomY < top + 0.45f && o.ContainsXZ(w, 0.045f)) return false;   // a real object stands there
+                foreach (var c in clutter)
+                    if (Vector2.Distance(new Vector2(c.x, c.z), new Vector2(w.x, w.z)) < 0.06f) return false;      // something on the table there
                 return true;
             }
             // beside the door (away from the case first), a little further out, then in front of it
@@ -1283,7 +1305,7 @@ namespace Parlor
             if (covered)
             {
                 SayNow("finale.lift");
-                var lift = new BeatGate(4f, 8f, 12f, 0.2f);
+                var lift = new BeatGate(6f, 9f, 12f, 0.2f);
                 // "Now lift": a small lift counts. The hand has lifted when it is 6 cm higher than where it covered the
                 // case, or no longer over the case at all (moved away, turned over, or lost).
                 float coveredAt = Vector3.Dot(found.PalmPosition - Case.CoverPoint, up);
@@ -1333,8 +1355,9 @@ namespace Parlor
             // ...and the card itself rises from the deep stage on the lift, with him standing in front of it
             EnsureBigCard(face, 1.55f);
             _bigCard.transform.SetParent(Portal.Lift, false);
-            _bigCard.transform.localPosition = new Vector3(0, CardProp.Height * 1.55f * 0.5f + 0.004f, 0.075f);
-            _bigCard.transform.localRotation = Quaternion.Euler(-12, 0, 0);
+            // beside him, facing the user, so the reveal is never hidden behind him
+            _bigCard.transform.localPosition = new Vector3(0.105f, CardProp.Height * 1.55f * 0.5f + 0.004f, -0.005f);
+            _bigCard.transform.localRotation = Quaternion.Euler(-14, -10, 0);
             _bigCard.gameObject.SetActive(true);
             Magician.Present();
             Sfx("fanfare", Portal.transform.position, 0.9f);
@@ -1363,7 +1386,7 @@ namespace Parlor
             // the user's bow: a head dip. Optional (cut list item 1), so its fuse is short.
             SayNow("curtain.bow");
             float baseline = PoseMath.PitchDownDegrees(Head.Head.rotation);
-            var bow = new BeatGate(3f, 6f, 9f, 0.15f);
+            var bow = new BeatGate(5f, 8f, 11f, 0.15f);
             yield return RunGate("curtain.bow", bow,
                 () => PoseMath.PitchDownDegrees(Head.Head.rotation) - baseline > 14f,
                 () => PoseMath.PitchDownDegrees(Head.Head.rotation) - baseline > 9f,

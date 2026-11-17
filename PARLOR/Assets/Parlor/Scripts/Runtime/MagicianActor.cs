@@ -613,7 +613,7 @@ namespace Parlor
                 Set(B.ArmR, a ? -150 : -120, 0, a ? 40 : 70); Set(B.ForeR, a ? -40 : -10, 0, 0);
                 Set(B.ArmL, a ? -120 : -150, 0, a ? -70 : -40); Set(B.ForeL, a ? -10 : -40, 0, 0);
                 Set(B.Head, -10, a ? 12 : -12, 0);
-                if (a) _hopVel = 0.22f;
+                if (a && Mathf.RoundToInt(t / 0.18f) % 4 == 0) _hopVel = 0.12f;   // small hops: he stays on the table
                 yield return Wait(0.18f);
             }
             Rest();

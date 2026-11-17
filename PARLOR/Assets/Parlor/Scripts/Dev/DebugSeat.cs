@@ -127,8 +127,9 @@ namespace Parlor
                 case "beforeToken": p = d.Token.transform.position - st.forward * 0.08f; break;
                 case "card0": case "card1": case "card2":
                     p = st.TransformPoint(Layout.CardRowCentre + Vector3.right * ((name[4] - '1') * Layout.CardSpacing)); break;
-                case "restL": p = st.TransformPoint(new Vector3(-0.20f, 0.10f, -0.36f)); break;
-                default: p = st.TransformPoint(new Vector3(0.20f, 0.10f, -0.36f)); break;   // "rest"
+                // hands resting flat on the tabletop near its front edge, either side of the stage (wrist positions)
+                case "restL": p = st.TransformPoint(new Vector3(-0.28f, 0.035f, Mathf.Max(d.Site.TableRect.yMin + 0.07f, -0.42f))); break;
+                default: p = st.TransformPoint(new Vector3(0.28f, 0.035f, Mathf.Max(d.Site.TableRect.yMin + 0.07f, -0.42f))); break;   // "rest"
             }
             return string.Format(CultureInfo.InvariantCulture, "{0:F3} {1:F3} {2:F3}", p.x, p.y, -p.z);
         }

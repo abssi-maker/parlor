@@ -39,6 +39,8 @@ namespace Parlor
                 room.Tables(tables);
                 var obstacles = new List<RoomBox>();
                 room.Obstacles(obstacles);
+                var clutter = new List<Vector3>();
+                room.Clutter(clutter);
 
                 // Returning user: same table as last time → the stage goes back on exactly the same spot, but only if
                 // that spot is still reachable from where they sit and still clear (things move on real tables).
@@ -48,7 +50,7 @@ namespace Parlor
                         {
                             Pose p = new Pose(t.Pose.position + t.Pose.rotation * savedPos, t.Pose.rotation * Quaternion.Euler(0, savedYaw, 0));
                             float reach = Vector3.ProjectOnPlane(p.position - h.position, Vector3.up).magnitude;
-                            if (reach <= MaxReach && FootprintFits(t, p) && !Blocked(t, p, obstacles))
+                            if (reach <= MaxReach && FootprintFits(t, p) && !Blocked(t, p, obstacles) && !Cluttered(p, clutter))
                             {
                                 Apply(stage, site, p, RectOnTable(t, p), 1, t.Uuid, true);
                                 yield break;
@@ -57,7 +59,7 @@ namespace Parlor
 
                 float best = float.MaxValue; Pose bestPose = default; Rect bestRect = default; TableSurface bestTable = default;
                 foreach (var t in tables)
-                    if (TryTable(t, h, out Pose p, out Rect r, out float score, obstacles) && score < best)
+                    if (TryTable(t, h, out Pose p, out Rect r, out float score, obstacles, clutter) && score < best)
                     { best = score; bestPose = p; bestRect = r; bestTable = t; }
                 if (best < float.MaxValue)
                 {
@@ -126,6 +128,22 @@ namespace Parlor
             return false;
         }
 
+        /// <summary>
+        /// True when anything real stands inside the footprint (plus a 3 cm margin): scene-mesh points on the tabletop.
+        /// </summary>
+        public static bool Cluttered(Pose stagePose, List<Vector3> clutter, float margin = 0.03f)
+        {
+            if (clutter == null || clutter.Count == 0) return false;
+            Quaternion inv = Quaternion.Inverse(stagePose.rotation);
+            Rect f = Footprint;
+            foreach (var w in clutter)
+            {
+                Vector3 l = inv * (w - stagePose.position);
+                if (l.x > f.xMin - margin && l.x < f.xMax + margin && l.z > f.yMin - margin && l.z < f.yMax + margin) return true;
+            }
+            return false;
+        }
+
         /// <summary>Tier 3: the stage 40 cm below eye level, about half a metre ahead, facing away from the user.</summary>
         public static Pose Floating(Pose head)
         {
@@ -142,7 +160,7 @@ namespace Parlor
         /// (not the middle of a two-metre desk) and its axes snap to the table's edges when the user sits roughly square to it.
         /// </summary>
         public static bool TryTable(TableSurface t, Pose head, out Pose stagePose, out Rect tableRect, out float score,
-                                    List<RoomBox> obstacles = null)
+                                    List<RoomBox> obstacles = null, List<Vector3> clutter = null)
         {
             stagePose = default; tableRect = default; score = float.MaxValue;
             Vector3 up = t.Pose.rotation * Vector3.up;
@@ -185,7 +203,7 @@ namespace Parlor
                     if (Vector2.Angle(d, axis) < 35f) d = axis;
                     var p = new Pose(t.Pose.position + t.Pose.rotation * new Vector3(c.x, 0, c.y),
                                      t.Pose.rotation * Quaternion.LookRotation(new Vector3(d.x, 0, d.y), Vector3.up));
-                    if (!FootprintFits(t, p) || Blocked(t, p, obstacles)) continue;
+                    if (!FootprintFits(t, p) || Blocked(t, p, obstacles) || Cluttered(p, clutter)) continue;
                     best = s; bestPose = p; found = true;
                 }
             if (!found) return false;

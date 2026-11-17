@@ -44,6 +44,60 @@ namespace Parlor.Quest
                     if (a && a.HasAnyLabel(MRUKAnchor.SceneLabels.TABLE) && TryTop(a, out TableSurface s)) into.Add(s);
         }
 
+        List<Vector3> _clutter;
+
+        /// <summary>
+        /// Samples the scene mesh (GLOBAL_MESH) on a 2 cm grid wherever it rises 1.5–45 cm above a table: the things
+        /// standing on the table that have no labelled volume. Computed once per loaded room (the mesh is static).
+        /// </summary>
+        public void Clutter(List<Vector3> into)
+        {
+            into.Clear();
+            if (!Available) return;
+            if (_clutter == null)
+            {
+                _clutter = new List<Vector3>();
+                var tables = new List<TableSurface>();
+                Tables(tables);
+                foreach (var room in MRUK.Instance.Rooms)
+                {
+                    var g = room ? room.GetGlobalMeshAnchor() : null;
+                    var mesh = g ? g.GlobalMesh : null;
+                    if (!mesh) continue;
+                    var v = mesh.vertices; var tri = mesh.triangles; var tr = g.transform;
+                    var w = new Vector3[v.Length];
+                    for (int i = 0; i < v.Length; i++) w[i] = tr.TransformPoint(v[i]);
+                    foreach (var t in tables)
+                    {
+                        float top = t.Pose.position.y;
+                        Quaternion inv = Quaternion.Inverse(t.Pose.rotation);
+                        Vector2 half = t.Size * 0.5f + Vector2.one * 0.05f;
+                        bool On(Vector3 p)
+                        {
+                            if (p.y < top + 0.015f || p.y > top + 0.45f) return false;
+                            Vector3 l = inv * (p - t.Pose.position);
+                            return Mathf.Abs(l.x) <= half.x && Mathf.Abs(l.z) <= half.y;
+                        }
+                        for (int k = 0; k + 2 < tri.Length; k += 3)
+                        {
+                            Vector3 a = w[tri[k]], b = w[tri[k + 1]], c = w[tri[k + 2]];
+                            if (!On(a) && !On(b) && !On(c)) continue;
+                            float edge = Mathf.Max((b - a).magnitude, (c - a).magnitude, (c - b).magnitude);
+                            int n = Mathf.Clamp(Mathf.CeilToInt(edge / 0.02f), 1, 40);
+                            for (int i = 0; i <= n; i++)
+                                for (int j = 0; i + j <= n; j++)
+                                {
+                                    Vector3 p = a + (b - a) * (i / (float)n) + (c - a) * (j / (float)n);
+                                    if (On(p)) _clutter.Add(p);
+                                }
+                        }
+                    }
+                }
+                Debug.Log("[PARLOR] scene-mesh clutter points on tables: " + _clutter.Count);
+            }
+            into.AddRange(_clutter);
+        }
+
         public void Obstacles(List<RoomBox> into)
         {
             if (!Available) return;

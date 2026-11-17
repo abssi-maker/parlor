@@ -58,6 +58,11 @@ namespace Parlor
         void Walls(List<WallSurface> into);
         /// <summary>Scanned objects (not tables, walls, floor or ceiling) the stage must not stand on or through.</summary>
         void Obstacles(List<RoomBox> into) { }
+        /// <summary>
+        /// Points on real things standing on tables (books, boxes, mugs), sampled from the scene mesh: clutter the room
+        /// model has no box for. World space.
+        /// </summary>
+        void Clutter(List<Vector3> into) { }
         /// <summary>World height of the real floor, when the room knows it.</summary>
         bool TryFloorY(out float y) { y = 0f; return false; }
     }
