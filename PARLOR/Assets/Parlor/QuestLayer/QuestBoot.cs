@@ -17,8 +17,48 @@ namespace Parlor.Quest
 
         ParlorApp _app;
 
+        /// <summary>
+        /// The Quest's performance controls: the display at 90 Hz when the headset offers it (smoother hands and a
+        /// steadier magician than 72 Hz, and the scene has the headroom: ~40 draw calls, ~20k triangles, no realtime
+        /// lights), fixed foveated rendering at High with dynamic foveation (the edges of the view are only ever
+        /// passthrough and curtain), and sustained-high CPU/GPU levels. Each step is guarded: a headset or runtime that
+        /// refuses one setting keeps its default, and the show starts regardless.
+        /// </summary>
+        static void ConfigurePerformance()
+        {
+            var applied = new System.Text.StringBuilder("[PARLOR] quest performance:");
+            try
+            {
+                float best = 0f;
+                foreach (float hz in OVRPlugin.systemDisplayFrequenciesAvailable) if (hz <= 90.5f && hz > best) best = hz;
+                if (best >= 72f && !Application.isEditor) { OVRPlugin.systemDisplayFrequency = best; applied.Append(" ").Append(best.ToString("F0")).Append(" Hz;"); }
+            }
+            catch (System.Exception e) { applied.Append(" refresh unchanged (").Append(e.GetType().Name).Append(");"); }
+            try
+            {
+                if (OVRManager.fixedFoveatedRenderingSupported)
+                {
+                    OVRManager.foveatedRenderingLevel = OVRManager.FoveatedRenderingLevel.High;
+                    OVRManager.useDynamicFoveatedRendering = true;
+                    applied.Append(" foveation High (dynamic);");
+                }
+                else applied.Append(" foveation unsupported;");
+            }
+            catch (System.Exception e) { applied.Append(" foveation unchanged (").Append(e.GetType().Name).Append(");"); }
+            try
+            {
+                OVRManager.suggestedCpuPerfLevel = OVRManager.ProcessorPerformanceLevel.SustainedHigh;
+                OVRManager.suggestedGpuPerfLevel = OVRManager.ProcessorPerformanceLevel.SustainedHigh;
+                applied.Append(" CPU/GPU SustainedHigh");
+            }
+            catch (System.Exception e) { applied.Append(" CPU/GPU levels unchanged (").Append(e.GetType().Name).Append(")"); }
+            try { if (OVRPlugin.systemDisplayFrequency >= 30f) PerfMonitor.DisplayHz = OVRPlugin.systemDisplayFrequency; } catch { }
+            Debug.Log(applied.ToString());
+        }
+
         void Start()
         {
+            ConfigurePerformance();
             // Passthrough is an underlay: the eye buffer must clear to transparent black so the room shows through
             // wherever nothing virtual is drawn.
             foreach (var cam in Rig.GetComponentsInChildren<Camera>())

@@ -126,6 +126,7 @@ namespace Parlor
             Director.DebugGesture = OnDebugGesture;
             Director.HouseLights = level => HouseLights?.Invoke(level);
             Director.RestartRequested = () => Replace();
+            PerfMonitor.Attach(Stage.gameObject, Director);
 
             int night = Options.Night > 0 ? Options.Night : NightStore.CurrentNight;
             Director.Init(night);
