@@ -41,6 +41,20 @@ namespace Parlor
 
         void Tri(int a, int b, int c) { T.Add(a); T.Add(b); T.Add(c); }
 
+        /// <summary>Appends a ready-made mesh part (flat xyz / rgb arrays, triangle indices), rigid on the current bone.</summary>
+        public MeshKit Raw(float[] v, float[] n, float[] c, int[] t)
+        {
+            int start = V.Count, count = v.Length / 3;
+            for (int i = 0; i < count; i++)
+            {
+                Col = new Color(c[i * 3], c[i * 3 + 1], c[i * 3 + 2]);
+                Add(new Vector3(v[i * 3], v[i * 3 + 1], v[i * 3 + 2]), new Vector3(n[i * 3], n[i * 3 + 1], n[i * 3 + 2]), Vector2.zero);
+            }
+            // the parts wind counter-clockwise seen from outside; Unity's front faces are clockwise
+            for (int i = 0; i + 2 < t.Length; i += 3) Tri(start + t[i], start + t[i + 2], start + t[i + 1]);
+            return this;
+        }
+
         /// <summary>
         /// Quad from four corners given as seen from the front: a bottom-left, b bottom-right, c top-right,
         /// d top-left. UVs span uvMin..uvMax. (Unity is left-handed: front faces wind clockwise.)

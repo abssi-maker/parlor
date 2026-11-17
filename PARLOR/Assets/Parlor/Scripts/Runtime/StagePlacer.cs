@@ -131,6 +131,20 @@ namespace Parlor
         /// <summary>
         /// True when anything real stands inside the footprint (plus a 3 cm margin): scene-mesh points on the tabletop.
         /// </summary>
+        /// <summary>How many clutter samples fall inside the footprint (2 cm samples: a rough area of overlap).</summary>
+        public static int ClutterCount(Pose stagePose, List<Vector3> clutter)
+        {
+            if (clutter == null) return 0;
+            Quaternion inv = Quaternion.Inverse(stagePose.rotation);
+            Rect f = Footprint; int n = 0;
+            foreach (var w in clutter)
+            {
+                Vector3 l = inv * (w - stagePose.position);
+                if (l.x > f.xMin && l.x < f.xMax && l.z > f.yMin && l.z < f.yMax) n++;
+            }
+            return n;
+        }
+
         public static bool Cluttered(Pose stagePose, List<Vector3> clutter, float margin = 0.03f)
         {
             if (clutter == null || clutter.Count == 0) return false;
@@ -184,9 +198,12 @@ namespace Parlor
             Vector2 want = eye + fwd * Ahead;
 
             // Search the tabletop on a 4 cm grid for the spot nearest to "half a metre in front of the eyes" where the
-            // whole footprint rests on the table, within reach, clear of scanned objects.
+            // whole footprint rests on the table, within reach, clear of scanned objects. If real clutter covers every
+            // reachable spot, a second pass accepts the spot that overlaps the least of it: the show always stands on
+            // the user's real table rather than on a virtual one.
             bool found = false; float best = float.MaxValue; Pose bestPose = default;
             int nx = Mathf.Max(1, Mathf.CeilToInt(t.Size.x / GridStep)), nz = Mathf.Max(1, Mathf.CeilToInt(t.Size.y / GridStep));
+            for (int pass = 0; pass < 2 && !found; pass++)
             for (int i = 0; i <= nx; i++)
                 for (int j = 0; j <= nz; j++)
                 {
@@ -195,6 +212,7 @@ namespace Parlor
                     if (reach > MaxReach) continue;
                     float s = (want - c).magnitude + Mathf.Abs(reach - Ahead) * 0.5f;
                     if (s >= best) continue;
+                    // (pass 1 adds the overlap with clutter below, once the pose is known)
 
                     Vector2 d = c - eye;
                     d = d.sqrMagnitude > 0.0025f ? d.normalized : fwd;
@@ -203,7 +221,9 @@ namespace Parlor
                     if (Vector2.Angle(d, axis) < 35f) d = axis;
                     var p = new Pose(t.Pose.position + t.Pose.rotation * new Vector3(c.x, 0, c.y),
                                      t.Pose.rotation * Quaternion.LookRotation(new Vector3(d.x, 0, d.y), Vector3.up));
-                    if (!FootprintFits(t, p) || Blocked(t, p, obstacles) || Cluttered(p, clutter)) continue;
+                    if (!FootprintFits(t, p) || Blocked(t, p, obstacles)) continue;
+                    if (pass == 0) { if (Cluttered(p, clutter)) continue; }
+                    else { s += 0.002f * ClutterCount(p, clutter); if (s >= best) continue; }
                     best = s; bestPose = p; found = true;
                 }
             if (!found) return false;

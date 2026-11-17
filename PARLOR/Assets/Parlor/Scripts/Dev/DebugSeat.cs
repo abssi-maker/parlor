@@ -49,6 +49,23 @@ namespace Parlor
         /// Head pose leaning over the trapdoor (video hero shot): <paramref name="back"/> metres towards the user from the
         /// opening, <paramref name="height"/> above the table, looking at a point <paramref name="lookDepth"/> into the pit.
         /// </summary>
+        /// <summary>
+        /// Head pose framed on the stage wherever placement put it (video): <paramref name="back"/> metres behind the
+        /// stage origin on the user's side, <paramref name="height"/> above the table, facing the way the stage faces,
+        /// pitched down by <paramref name="pitchDown"/> degrees.
+        /// </summary>
+        public static string OpenXrView(float pitchDown = 40f, float back = 0.40f, float height = 0.40f)
+        {
+            var app = ParlorApp.Instance;
+            if (!app || !app.Stage) return "";
+            Transform s = app.Stage;
+            Vector3 f = Vector3.ProjectOnPlane(s.forward, Vector3.up).normalized;
+            Vector3 eye = s.position - f * back + Vector3.up * height;
+            Quaternion look = Quaternion.LookRotation(f, Vector3.up) * Quaternion.Euler(pitchDown, 0, 0);
+            var c = CultureInfo.InvariantCulture;
+            return string.Format(c, "{0:F3} {1:F3} {2:F3} {3:F4} {4:F4} {5:F4} {6:F4}", eye.x, eye.y, -eye.z, -look.x, -look.y, look.z, look.w);
+        }
+
         public static string OpenXrLean(float back = 0.22f, float height = 0.38f, float lookDepth = 0f)
         {
             // Measured from where the trapdoor opens for the coin (the "place" point the capture scripts set it down
@@ -76,6 +93,11 @@ namespace Parlor
             foreach (var n in new[] { "coin", "aboveCoin", "place", "abovePlace", "palm", "case", "caseWrist", "aboveCase", "token",
                                       "beforeToken", "card0", "card1", "card2", "rest", "restL", "doorL", "doorR" })
                 sb.Append("P ").Append(n).Append(' ').Append(OpenXrPoint(n)).Append('\n');
+            foreach (var v in new[] { "40 0.40 0.40", "8 0.45 0.44", "34 0.45 0.44", "28 0.40 0.40" })
+            {
+                var f = v.Split(' ');
+                sb.Append("V ").Append(v).Append(' ').Append(OpenXrView(float.Parse(f[0], CultureInfo.InvariantCulture), float.Parse(f[1], CultureInfo.InvariantCulture), float.Parse(f[2], CultureInfo.InvariantCulture))).Append('\n');
+            }
             foreach (var pitch in new[] { 4, 8, 32, 34 })
                 sb.Append("S 0 ").Append(pitch).Append(' ').Append(OpenXrSeat(0, pitch).Split('|')[0].Trim()).Append('\n');
             foreach (var n in new[] { "card0", "card1", "card2", "palm" })

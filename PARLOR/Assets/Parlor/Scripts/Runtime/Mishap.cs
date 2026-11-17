@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Parlor
@@ -9,17 +10,20 @@ namespace Parlor
     /// </summary>
     static class MishapArt
     {
-        static Texture2D _shadow;
+        static Texture2D _shadow, _friend;
+
+        /// <summary>The same silhouette without horns: his own shadow, once it has calmed down.</summary>
+        public static Texture2D Friend => _friend ? _friend : _friend = Build(false, "FriendShadow");
 
         /// <summary>
         /// Procedural silhouette atlas, 512 × 512: left half the possessed magician (top hat with horns, cape), right
         /// half one clawed arm. Alpha only, soft edged. Built once, on first use (about 10 ms).
         /// </summary>
-        public static Texture2D Shadow
+        public static Texture2D Shadow => _shadow ? _shadow : _shadow = Build(true, "MishapShadow");
+
+        static Texture2D Build(bool horns, string name)
         {
-            get
             {
-                if (_shadow) return _shadow;
                 const int W = 512, H = 512;
                 var a = new float[W * H];
                 for (int y = 0; y < H; y++)
@@ -27,7 +31,7 @@ namespace Parlor
                     {
                         bool body = x < 256;
                         float u = (body ? x : x - 256) / 255f, v = y / 511f;
-                        a[y * W + x] = body ? Body(u, v) : Arm(u, v);
+                        a[y * W + x] = body ? Body(u, v, horns) : Arm(u, v);
                     }
                 // soften: two box-blur passes
                 for (int pass = 0; pass < 2; pass++)
@@ -48,12 +52,12 @@ namespace Parlor
                         }
                     a = b;
                 }
-                _shadow = new Texture2D(W, H, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "MishapShadow" };
+                var tex = new Texture2D(W, H, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = name };
                 var px = new Color32[W * H];
                 for (int i = 0; i < px.Length; i++) px[i] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a[i]) * 255));
-                _shadow.SetPixels32(px);
-                _shadow.Apply(false, true);
-                return _shadow;
+                tex.SetPixels32(px);
+                tex.Apply(false, true);
+                return tex;
             }
         }
 
@@ -63,7 +67,7 @@ namespace Parlor
             return du * du + dv * dv <= 1f ? 1f : 0f;
         }
 
-        static float Body(float u, float v)
+        static float Body(float u, float v, bool horns)
         {
             float d = Mathf.Abs(u - 0.5f);
             // ragged cape, wide at the hem
@@ -78,6 +82,7 @@ namespace Parlor
             if (v > 0.700f && v < 0.722f && d < 0.17f) return 1f;                  // hat brim
             if (v >= 0.722f && v < 0.88f && d < Mathf.Lerp(0.105f, 0.095f, (v - 0.722f) / 0.16f)) return 1f;   // crown
             // horns: curving out and up from the crown
+            if (horns)
             for (int s = -1; s <= 1; s += 2)
                 for (int i = 0; i <= 24; i++)
                 {
@@ -193,8 +198,14 @@ namespace Parlor
     public sealed class WallShadow : MonoBehaviour
     {
         IRoomSource _room;
-        Transform _root, _body, _armL, _armR, _eyes;
+        Transform _root, _body, _armL, _armR, _eyes, _pool;
         Material _mat;
+        Pose _wall; Vector2 _wallSize; bool _onWall;
+        float _run, _dip;
+        /// <summary>Where it ran off to (a real door or window, or the edge of the wall), once it has fled.</summary>
+        public Vector3? ExitPoint { get; private set; }
+        public bool OnWall => _onWall;
+        public Vector3 Position => _root ? _root.position + Vector3.up * 0.6f : transform.position;
         float _grow, _growTarget, _shudder, _alpha = 0.82f, _spin;
         public bool Shown => _root && _root.gameObject.activeSelf;
 
@@ -214,7 +225,7 @@ namespace Parlor
             // a pool of hellish light on the wall first, so the black shadow inside it reads against a dark room
             var pool = new MeshKit();
             pool.At(new Vector3(0, 0.52f, 0.006f)).Card(1.25f, 1.25f, Vector2.zero, Vector2.one);
-            pool.ToObject("Pool", _root, Mats.Fx("wallpool", new Color(1f, 0.32f, 0.10f, 0.55f), additive: true, soft: 1f, queueOffset: -3));
+            _pool = pool.ToObject("Pool", _root, Mats.Fx("wallpool", new Color(1f, 0.32f, 0.10f, 0.55f), additive: true, soft: 1f, queueOffset: -3)).transform;
             _mat = Mats.Fx("wallshadow", new Color(0.02f, 0f, 0.03f, _alpha));
             _mat.SetTexture("_MainTex", MishapArt.Shadow);
             // body: unit height, pivot at the hem
@@ -243,10 +254,12 @@ namespace Parlor
         public void Show(StageSite site, Pose head)
         {
             if (!_root) Build();
-            Pose set; Vector2 size;
+            Pose set = default; Vector2 size = default;
             float height;
-            if (site.Tier != 3 && WallCurtainStager.TryForwardWall(_room, head, out set, out size))
+            _onWall = site.Tier != 3 && WallCurtainStager.TryForwardWall(_room, head, out set, out size);
+            if (_onWall)
             {
+                _wall = set; _wallSize = size;
                 height = Mathf.Clamp(size.y * 1.05f, 1.2f, 2.1f);
                 // stand the hem on the bottom of the visible wall section, slightly off the wall
                 set.position += set.rotation * new Vector3(0, -size.y * 0.5f, -0.02f);
@@ -261,8 +274,95 @@ namespace Parlor
             _root.SetPositionAndRotation(set.position, set.rotation);
             _root.localScale = Vector3.one * 0.001f;
             _baseScale = height;
-            _grow = 0f; _growTarget = 1f; _shudder = 0f; _spin = 0f;
+            _grow = 0f; _growTarget = 1f; _shudder = 0f; _spin = 0f; _run = 0f; _dip = 0f;
+            _mat.SetTexture("_MainTex", MishapArt.Shadow);
+            _mat.color = new Color(0.02f, 0f, 0.03f, _alpha);
+            _pool.gameObject.SetActive(true); _eyes.gameObject.SetActive(true);
+            ExitPoint = null;
             _root.gameObject.SetActive(true);
+        }
+
+        /// <summary>
+        /// The Vanish breaks its hold: it shrinks to an ordinary shadow and runs for it along the user's real wall, out
+        /// through a real door or window in that wall if there is one (MRUK DOOR_FRAME / WINDOW_FRAME), otherwise off
+        /// the edge of the wall. With no wall it simply spins away.
+        /// </summary>
+        public IEnumerator Flee()
+        {
+            if (!Shown) yield break;
+            if (!_onWall) { yield return Banish(); yield break; }
+            _eyes.gameObject.SetActive(false); _pool.gameObject.SetActive(false);
+            _mat.SetTexture("_MainTex", MishapArt.Friend);
+            float from = _baseScale, to = Mathf.Min(_baseScale, 0.95f);
+            for (float t = 0; t < 0.5f; t += Time.deltaTime) { _baseScale = Mathf.Lerp(from, to, t / 0.5f); _shudder = 1f - t / 0.5f; yield return null; }
+            _shudder = 0f;
+
+            // where to: an opening in this wall, else the nearer edge of the wall
+            Vector3 n = -(_wall.rotation * Vector3.forward);                  // out of the wall, into the room
+            Vector3 right = _wall.rotation * Vector3.right;
+            float goal = float.NaN, best = float.MaxValue;
+            var openings = new List<WallSurface>();
+            _room?.Openings(openings);
+            foreach (var o in openings)
+            {
+                if (Vector3.Dot(o.Pose.forward, n) < 0.85f) continue;          // another wall
+                if (Mathf.Abs(Vector3.Dot(o.Pose.position - _root.position, n)) > 0.25f) continue;
+                float x = Vector3.Dot(o.Pose.position - _root.position, right);
+                if (Mathf.Abs(x) < best) { best = Mathf.Abs(x); goal = x; }
+            }
+            bool door = !float.IsNaN(goal);
+            if (!door)
+            {
+                float here = Vector3.Dot(_root.position - _wall.position, right);
+                float edge = _wallSize.x * 0.5f + 0.5f;
+                goal = (here >= 0f ? edge : -edge) - here;
+            }
+            Vector3 start = _root.position, end = start + right * goal;
+            float dur = Mathf.Clamp(Mathf.Abs(goal) / 1.6f, 0.8f, 2.4f);
+            for (float t = 0; t < dur; t += Time.deltaTime)
+            {
+                float x = Mathf.SmoothStep(0f, 1f, t / dur);
+                _run = Mathf.Sign(goal);
+                _root.position = Vector3.Lerp(start, end, x) + Vector3.up * (Mathf.Abs(Mathf.Sin(t * 14f)) * 0.04f);
+                // through a door it shrinks into the opening; off a wall's edge it just leaves
+                if (door && x > 0.8f) _baseScale = Mathf.Lerp(to, 0.05f, (x - 0.8f) / 0.2f);
+                yield return null;
+            }
+            ExitPoint = end;
+            _run = 0f;
+            HideImmediate();
+        }
+
+        /// <summary>Comes back, calm and hornless, from wherever it fled, and stands at the given spot on the wall.</summary>
+        public IEnumerator ReturnAsFriend(Pose spot, float height)
+        {
+            if (!_root) Build();
+            _mat.SetTexture("_MainTex", MishapArt.Friend);
+            _mat.color = new Color(0.02f, 0f, 0.03f, 0.62f);
+            _pool.gameObject.SetActive(false); _eyes.gameObject.SetActive(false);
+            Vector3 from = ExitPoint ?? spot.position + spot.rotation * Vector3.right * 1.2f;
+            _root.SetPositionAndRotation(from, spot.rotation);
+            _baseScale = height; _grow = 1f; _growTarget = 1f; _spin = 0f; _shudder = 0f; _dip = 0f;
+            _root.gameObject.SetActive(true);
+            float dist = (spot.position - from).magnitude;
+            float dur = Mathf.Clamp(dist / 1.0f, 0.6f, 2.5f);
+            for (float t = 0; t < dur; t += Time.deltaTime)
+            {
+                float x = Mathf.SmoothStep(0f, 1f, t / dur);
+                _run = Mathf.Sign(Vector3.Dot(spot.position - from, spot.rotation * Vector3.right)) * 0.5f;   // a shy walk, not a run
+                _root.position = Vector3.Lerp(from, spot.position, x) + Vector3.up * (Mathf.Abs(Mathf.Sin(t * 8f)) * 0.025f);
+                yield return null;
+            }
+            _run = 0f;
+            _root.position = spot.position;
+        }
+
+        /// <summary>A bow on the wall: it dips down and up again.</summary>
+        public IEnumerator Bow()
+        {
+            if (!Shown) yield break;
+            for (float t = 0; t < 1.3f; t += Time.deltaTime) { _dip = Mathf.Sin(Mathf.Clamp01(t / 1.3f) * Mathf.PI); yield return null; }
+            _dip = 0f;
         }
 
         float _baseScale = 1.6f;
@@ -287,10 +387,26 @@ namespace Parlor
             _grow = Mathf.MoveTowards(_grow, _growTarget, Time.deltaTime * (_growTarget > _grow ? 0.55f : 1.6f));
             float g = Mathf.SmoothStep(0f, 1f, _grow);
             float jitter = _shudder * 0.02f;
-            _root.localScale = new Vector3(1f + Random.Range(-jitter, jitter), 1f + Random.Range(-jitter, jitter), 1f) * (_baseScale * Mathf.Max(0.001f, g));
-            _body.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(t * 0.9f) * 3f + _spin);
-            _armL.localRotation = Quaternion.Euler(0, 0, 38f + Mathf.Sin(t * 1.3f) * 14f + _spin);
-            _armR.localRotation = Quaternion.Euler(0, 0, -38f - Mathf.Sin(t * 1.3f + 1.1f) * 14f + _spin);
+            _root.localScale = new Vector3(1f + Random.Range(-jitter, jitter), (1f + Random.Range(-jitter, jitter)) * (1f - 0.2f * _dip), 1f) * (_baseScale * Mathf.Max(0.001f, g));
+            float lean = -_run * 12f;                                         // leaning into the run
+            _body.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(t * 0.9f) * 3f + _spin + lean);
+            if (_run != 0f)
+            {
+                // running: arms pumping
+                _armL.localRotation = Quaternion.Euler(0, 0, 60f + Mathf.Sin(t * 14f) * 40f + lean);
+                _armR.localRotation = Quaternion.Euler(0, 0, -60f - Mathf.Sin(t * 14f) * 40f + lean);
+            }
+            else if (_dip > 0f)
+            {
+                // bowing: one arm sweeps across, one out
+                _armL.localRotation = Quaternion.Euler(0, 0, 150f * _dip + 20f);
+                _armR.localRotation = Quaternion.Euler(0, 0, -100f * _dip - 20f);
+            }
+            else
+            {
+                _armL.localRotation = Quaternion.Euler(0, 0, 38f + Mathf.Sin(t * 1.3f) * 14f + _spin);
+                _armR.localRotation = Quaternion.Euler(0, 0, -38f - Mathf.Sin(t * 1.3f + 1.1f) * 14f + _spin);
+            }
             _eyes.localScale = Vector3.one * (0.85f + 0.2f * Mathf.Sin(t * 3.1f));
         }
     }

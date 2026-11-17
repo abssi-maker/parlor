@@ -107,6 +107,7 @@ def main():
                         elif len(f) >= 9 and f[0] == "L": CACHE["L " + f[1]] = [float(v) for v in f[2:9]]; n += 1
                         elif len(f) >= 8 and f[0] == "N": CACHE["N"] = [float(v) for v in f[1:8]]; n += 1
                         elif len(f) >= 6 and f[0] == "Q": CACHE["Q " + f[1]] = [float(v) for v in f[2:6]]; n += 1
+                        elif len(f) >= 11 and f[0] == "V": CACHE["V %s %s %s" % (f[1], f[2], f[3])] = [float(v) for v in f[4:11]]; n += 1
                     print("warm =>", n, "poses cached", flush=True); continue
                 if name == "shot":   # shot <file.png>: the Meta XR Simulator window (virtual content over the synthetic room)
                     import subprocess, os
@@ -164,14 +165,29 @@ def main():
                     v = [float(x) for x in nums]; a = {"position": v[:3], "orientation": v[3:]}
                     if len(parts) > 3: a["duration_seconds"] = float(parts[3])
                     print("lean =>", s.call("openxr_set_head_pose", a).replace("\n", " ")[:80], flush=True); continue
+                if name == "view":   # view pitch back height [seconds]: frame the stage wherever it was placed (video)
+                    import subprocess
+                    parts = rest.split(); key = "V %s %s %s" % tuple(parts[:3])
+                    v = CACHE.get(key)
+                    if not v:
+                        r = subprocess.run(["unity", "command", "script", "eval", "--timeout", "60", "--code",
+                                            "return Parlor.DebugSeat.OpenXrView(%sf, %sf, %sf);" % tuple(parts[:3])], capture_output=True, text=True)
+                        nums = ((r.stdout.strip().splitlines() or [""])[-1]).split()
+                        if len(nums) != 7: print("view => failed:", r.stdout[-200:], flush=True); continue
+                        v = [float(x) for x in nums]
+                    hp = {"position": v[:3], "orientation": v[3:]}
+                    if len(parts) > 3: hp["duration_seconds"] = float(parts[3])
+                    print("view =>", key, s.call("openxr_set_head_pose", hp).replace("\n", " "), flush=True); continue
                 if name == "seat":   # seat [index] [pitch]: sit the simulated head at a table of the loaded room
                     import subprocess
                     parts = rest.split(); idx = parts[0] if parts else "0"; pitch = parts[1] if len(parts) > 1 else "32"; slide = parts[2] if len(parts) > 2 else "0"
-                    c = CACHE.get("S %s %s" % (idx, pitch)) if float(slide) == 0 else None
+                    # seat idx pitch slide seconds forward drop: forward = metres closer to the table, drop = metres lower
+                    fwd = parts[4] if len(parts) > 4 else "0"; drop = parts[5] if len(parts) > 5 else "0"
+                    c = CACHE.get("S %s %s" % (idx, pitch)) if float(slide) == 0 and float(fwd) == 0 and float(drop) == 0 else None
                     if c: line = " ".join("%.4f" % v for v in c) + " | cached"
                     else:
                         r = subprocess.run(["unity", "command", "script", "eval", "--timeout", "60", "--code",
-                                            "return Parlor.DebugSeat.OpenXrSeat(%s, %sf, %sf);" % (idx, pitch, slide)], capture_output=True, text=True)
+                                            "return Parlor.DebugSeat.OpenXrSeat(%s, %sf, %sf, %sf, %sf);" % (idx, pitch, slide, fwd, drop)], capture_output=True, text=True)
                         line = (r.stdout.strip().splitlines() or [""])[-1]
                     nums = line.split("|")[0].split()
                     if len(nums) != 7: print("seat => no usable table:", line[:200], flush=True); continue

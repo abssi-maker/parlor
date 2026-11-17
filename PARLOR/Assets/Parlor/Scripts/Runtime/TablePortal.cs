@@ -200,28 +200,27 @@ namespace Parlor
         }
 
         // Tier 3: no real table, so the trapdoor opens in a small virtual parlour table instead.
+        // No real table: not a fake table standing in for one, but the magician's own flying carpet, a velvet cloth
+        // with a gold fringe floating at lap height. It reads as part of the act, added to the room, not furniture.
         void BuildVirtualTable(float legH)
         {
-            float w = 0.92f, dpt = 0.64f, th = 0.03f;   // legH: down to the real floor
+            float w = 0.92f, dpt = 0.64f;
+            var root = new GameObject("FlyingCarpet").transform;
+            // The carpet belongs to the stage, not to the opening: the opening can move across it.
+            root.SetParent(transform.parent ? transform.parent : transform, false);
             var top = new MeshKit();
             top.Tint(Color.white).Ground(w, dpt, 2f);
-            var root = new GameObject("VirtualTable").transform;
-            // The table belongs to the stage, not to the opening: the opening can move across it.
-            root.SetParent(transform.parent ? transform.parent : transform, false);
-            top.ToObject("Top", root, Mats.Lit("tabletop", "wood", new Color(0.92f, 0.84f, 0.78f), clip: Mats.ClipHole, rim: 0.12f));
-
-            var body = new MeshKit();
-            // apron: the slab's four edges
-            body.Tint(new Color(0.62f, 0.52f, 0.46f));
+            top.ToObject("Cloth", root, Mats.Lit("carpet", "velvet", new Color(1.5f, 0.95f, 0.95f), clip: Mats.ClipHole, rim: 0.25f, unlit: 0.25f));
+            // a gold border and hanging fringe on all four edges
+            var fringe = new MeshKit();
             Vector3 h = new Vector3(w * 0.5f, 0, dpt * 0.5f);
-            body.Quad(new Vector3(-h.x, -th, -h.z), new Vector3(h.x, -th, -h.z), new Vector3(h.x, 0, -h.z), new Vector3(-h.x, 0, -h.z), Vector2.zero, new Vector2(2, 0.1f));
-            body.Quad(new Vector3(h.x, -th, h.z), new Vector3(-h.x, -th, h.z), new Vector3(-h.x, 0, h.z), new Vector3(h.x, 0, h.z), Vector2.zero, new Vector2(2, 0.1f));
-            body.Quad(new Vector3(-h.x, -th, h.z), new Vector3(-h.x, -th, -h.z), new Vector3(-h.x, 0, -h.z), new Vector3(-h.x, 0, h.z), Vector2.zero, new Vector2(1.4f, 0.1f));
-            body.Quad(new Vector3(h.x, -th, -h.z), new Vector3(h.x, -th, h.z), new Vector3(h.x, 0, h.z), new Vector3(h.x, 0, -h.z), Vector2.zero, new Vector2(1.4f, 0.1f));
-            // legs sit outside the pit radius so they can never be seen through the opening in front of the theatre
-            foreach (var s in new[] { new Vector2(-1, -1), new Vector2(1, -1), new Vector2(1, 1), new Vector2(-1, 1) })
-                body.Tint(new Color(0.45f, 0.36f, 0.32f)).At(new Vector3(s.x * (h.x - 0.035f), -th - legH, s.y * (h.z - 0.035f))).Cylinder(0.014f, 0.024f, legH, 8, true, false, 3f);
-            body.ToObject("Body", root, Mats.Lit("tablebody", "wood", new Color(0.92f, 0.84f, 0.78f), clip: Mats.ClipNone, rim: 0.12f));
+            fringe.Tint(Color.white);
+            fringe.Quad(new Vector3(-h.x, -0.035f, -h.z), new Vector3(h.x, -0.035f, -h.z), new Vector3(h.x, 0, -h.z), new Vector3(-h.x, 0, -h.z), Vector2.zero, new Vector2(8, 1));
+            fringe.Quad(new Vector3(h.x, -0.035f, h.z), new Vector3(-h.x, -0.035f, h.z), new Vector3(-h.x, 0, h.z), new Vector3(h.x, 0, h.z), Vector2.zero, new Vector2(8, 1));
+            fringe.Quad(new Vector3(-h.x, -0.035f, h.z), new Vector3(-h.x, -0.035f, -h.z), new Vector3(-h.x, 0, -h.z), new Vector3(-h.x, 0, h.z), Vector2.zero, new Vector2(6, 1));
+            fringe.Quad(new Vector3(h.x, -0.035f, -h.z), new Vector3(h.x, -0.035f, h.z), new Vector3(h.x, 0, h.z), new Vector3(h.x, 0, -h.z), Vector2.zero, new Vector2(6, 1));
+            fringe.ToObject("Fringe", root, Mats.Lit("carpetfringe", null, Mats.Gold, clip: Mats.ClipNone, rim: 0.9f, twoSided: true));
+            root.gameObject.AddComponent<CarpetBob>();
             _table = root;
         }
 
@@ -320,5 +319,18 @@ namespace Parlor
         }
 
         void OnDisable() { Shader.SetGlobalVector(IdHole, Vector4.zero); }
+    }
+
+    /// <summary>The flying carpet hovers: a slow bob and sway of a few millimetres (never enough to unsettle).</summary>
+    public sealed class CarpetBob : MonoBehaviour
+    {
+        Vector3 _p; Quaternion _r; bool _init;
+        void Update()
+        {
+            if (!_init) { _p = transform.localPosition; _r = transform.localRotation; _init = true; }
+            float t = Time.time;
+            transform.localPosition = _p + Vector3.up * (Mathf.Sin(t * 1.1f) * 0.004f);
+            transform.localRotation = _r * Quaternion.Euler(Mathf.Sin(t * 0.8f) * 0.6f, 0, Mathf.Sin(t * 0.9f + 1f) * 0.6f);
+        }
     }
 }

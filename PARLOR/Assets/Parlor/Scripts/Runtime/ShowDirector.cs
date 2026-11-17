@@ -41,6 +41,7 @@ namespace Parlor
         public BirdProp Bird;
         public RoomDimmer Dimmer;
         public WallShadow Shadow;
+        public RoomTheatre Theatre;                  // the curtain call dresses the user's real walls
         public ShadowClaw Claw;
         public IRoomSource Room;                     // scanned objects, so he never lands inside a real one
         public IHandSource Hands;
@@ -197,6 +198,8 @@ namespace Parlor
             if (Audio) Audio.VoicePitch = 1f;
             if (Dimmer) { Dimmer.SetTint(new Color(0.10f, 0f, 0.02f)); Dimmer.SetLevel(0f, 1f, true); }
             if (Shadow) Shadow.HideImmediate();
+            if (Theatre) Theatre.HideImmediate();
+            Magician.EyeTarget = null;
             if (Claw) { Claw.gameObject.SetActive(false); Claw.SetGrip(0f); }
             Portal.SetSeam(false);
             Captions.transform.localPosition = Layout.Caption;
@@ -307,6 +310,8 @@ namespace Parlor
                         SayNow("hint.hands"); Magician.ShowHands();
                     }
                 }
+                // while he waits for a gesture he watches the hand that will make it
+                Magician.EyeTarget = NearestHand();
                 bool e = input && enter();
                 bool s = e || (input && stay());
                 var ev = gate.Tick(Time.deltaTime, e, s, needsHands && AnyPinch(), input || Autopilot);
@@ -315,6 +320,7 @@ namespace Parlor
                 if (Autopilot && !gate.Done && Time.time - opened >= AutopilotDelay) gate.Complete();
                 if (!gate.Done) yield return null;
             }
+            Magician.EyeTarget = null;
             Note("gate " + name + " → " + gate.Result);
             // Every recognised gesture is answered at once, by sound and by light on the hand that made it, so the
             // user never wonders whether the show saw them.
@@ -331,6 +337,20 @@ namespace Parlor
         }
 
         BeatGate NewGate(float hold = 0.4f) => new BeatGate(ShowGraph.Get(Model.State), hold);
+
+        /// <summary>The tracked palm closest to the stage, or null.</summary>
+        Vector3? NearestHand()
+        {
+            Vector3? best = null; float d = float.MaxValue;
+            for (int h = 0; h < 2; h++)
+            {
+                var hand = Hands.Get((Handed)h);
+                if (!hand.Tracked) continue;
+                float dd = (hand.PalmPosition - Stage.position).sqrMagnitude;
+                if (dd < d) { d = dd; best = hand.PalmPosition; }
+            }
+            return best;
+        }
 
         Rect Table => Site.TableRect;
 
@@ -429,6 +449,21 @@ namespace Parlor
 
             Magician.LookTarget = null;
             yield return new WaitForSeconds(Magician.Bow() * 0.75f);
+
+            // Your clutter is his set: he springs onto the nearest real object on the table with a flat top and
+            // performs the welcome from up there, commenting on what it is (read from its shape in the scene mesh).
+            bool onPodium = TryPodium(out Vector3 podium, out string kind);
+            if (onPodium)
+            {
+                Note("podium: " + kind + " at " + podium.ToString("F2"));
+                Magician.LookTarget = Stage.TransformPoint(podium);
+                yield return new WaitForSeconds(0.35f);
+                Sfx("whoosh", MagicianHead, 0.5f, 1.4f);
+                yield return HopMagicianTo(podium, 0.55f, Mathf.Max(0.09f, podium.y + 0.06f));
+                Magician.LookTarget = Head.Head.position;
+                Magician.Celebrate();
+                yield return Say("podium." + kind);
+            }
             if (returning)
             {
                 // He kept last night's card and shows it.
@@ -460,6 +495,16 @@ namespace Parlor
             Magician.Celebrate();
             Sfx("shimmer", MagicianHead, 0.6f);
             yield return Say("arrive.begin");
+            if (onPodium)
+            {
+                // back down to his stage for the first trick
+                Vector3 home = Stage.InverseTransformPoint(Portal.Lift.position);
+                Sfx("whoosh", MagicianHead, 0.5f, 1.2f);
+                yield return HopMagicianTo(home, 0.5f, Mathf.Max(0.09f, podium.y + 0.06f));
+                Magician.transform.SetParent(Portal.Lift, true);
+                Magician.transform.localPosition = Vector3.zero;
+                Magician.Face(180f, true);
+            }
             Note("arrival took " + (Time.realtimeSinceStartup - t0).ToString("0.0") + " s");
         }
 
@@ -755,7 +800,8 @@ namespace Parlor
             Vector3 start = Coin.transform.localPosition;
             Vector3 hand = Portal.transform.InverseTransformPoint(Magician.RightHand.position) + Vector3.up * 0.012f;
             Sparkles.Trail(_sparkle, true, 120f);
-            if (Audio) Audio.PlayFollowing("coin_chime", Coin.transform, 0.9f);
+            // a slide whistle that travels down with the coin, muffling as it sinks below the table
+            if (Audio) Audio.PlayFollowing(Audio.Has("coin_fall") ? "coin_fall" : "coin_chime", Coin.transform, 0.9f);
             // hand-authored, not free physics, so he always catches it. Three phases a viewer can follow on video:
             // it hangs over nothing for a beat (wobbling), drops, then floats the last stretch into his glove.
             const float hang = 0.45f, fall = 1.75f;
@@ -1048,11 +1094,18 @@ namespace Parlor
             Magician.Ponder();
             yield return Say("mishap.notme");
 
-            // --- he leaps off his stage onto the table, and the door slams ---------------------------
-            Vector3 side = SideSpot();
+            // --- he leaps off his stage and takes cover beside something real on the user's table ----
+            bool hiding = TryCowerSpot(out Vector3 side, out float lean);
+            if (!hiding) side = SideSpot();
             Sfx("whoosh", MagicianHead, 0.4f, 1.6f);
             yield return HopMagicianTo(side, 0.45f);
             Magician.LookTarget = P.position;
+            if (hiding)
+            {
+                Note("hides beside a real object");
+                Magician.Cower(lean);
+                yield return Say("mishap.hide");
+            }
             Sfx("trap_creak", P.position, 0.6f, 1.3f);
             yield return Portal.AnimateOpen(0f, 0.3f);
             Sfx("trap_clack", P.position, 1f);
@@ -1060,7 +1113,7 @@ namespace Parlor
             Portal.LiftY = LiftBottom;                // the stage drops away under the closed door: the pit is deep and dark
 
             // --- hold it shut ------------------------------------------------------------------------
-            Magician.Panic(1.0f);
+            if (!hiding) Magician.Panic(1.0f);       // (hiding, he stays cowering beside the real object)
             SayNow("mishap.hold");
             var hold = new BeatGate(ShowGraph.Hint, ShowGraph.Alt, ShowGraph.Auto, 3.2f);
             bool rattling = true;
@@ -1125,6 +1178,7 @@ namespace Parlor
             Note("monster rises");
             Sfx("sting", P.position, 1f);
             Shadow.Show(Site, Head.Head);
+            Sfx("shadow_motif", Shadow.Position, 1f);                 // the Shadow's own three notes
             StartCoroutine(Portal.AnimateLift(LiftTop, 2.2f));
             Sfx("growl", P.TransformPoint(0, -0.2f, 0), 1f, 0.8f);
             yield return new WaitForSeconds(1.8f);
@@ -1165,7 +1219,8 @@ namespace Parlor
             Sparkles.Burst(_sparkle, palm, 40, 0.25f);
             Sparkles.Burst(_sparkle, MagicianHead, 40, 0.2f);
             Sparkles.Burst(_smoke, MagicianHead, 40, 0.18f);
-            StartCoroutine(Shadow.Banish());
+            StartCoroutine(Shadow.Flee());
+            Sfx("shadow_motif", Shadow.Position, 0.6f, 1.6f);           // the same notes, scampering away
             Magician.SetShake(0f);
             Magician.SetMonster(false);
             Captions.transform.localPosition = Layout.Caption;
@@ -1178,6 +1233,11 @@ namespace Parlor
             yield return new WaitForSeconds(1.0f);
             Magician.Sheepish();
             yield return Say("mishap.ahem");
+            // he watches it go, and feels for it: the set-up for the curtain call
+            if (Shadow.ExitPoint.HasValue) Magician.LookTarget = Shadow.ExitPoint.Value;
+            Magician.SetMood(MagicianActor.Mood.Worried);
+            yield return Say("mishap.pity");
+            Magician.LookTarget = Head.Head.position;
 
             // and the stolen coin turns up in the hand that banished it
             if (tracked && Hands.Get(which).Tracked)
@@ -1194,6 +1254,131 @@ namespace Parlor
                 Coin.SetVisible(false);
             }
             else yield return Say("mishap.coin");
+        }
+
+        /// <summary>
+        /// The flat top of a real object on the table (a box, a book, a tin: scene-mesh clutter), 4–30 cm high, at least
+        /// 9 × 9 cm and level to 1.5 cm, within a hop of the trapdoor and within the user's reach. Returns the standing
+        /// point in stage space (y = height above the tabletop) and what kind of thing it looks like from its shape:
+        /// "flat" (low and wide: a box, a book), "tall" (higher than 15 cm), otherwise "any".
+        /// </summary>
+        bool TryPodium(out Vector3 top, out string kind)
+        {
+            top = default; kind = "any";
+            if (Room == null) return false;
+            var clutter = new System.Collections.Generic.List<Vector3>();
+            Room.Clutter(clutter);
+            if (clutter.Count == 0) return false;
+            const float cell = 0.03f;
+            var h = new System.Collections.Generic.Dictionary<Vector2Int, float>();
+            foreach (var w in clutter)
+            {
+                Vector3 l = Stage.InverseTransformPoint(w);
+                var k = new Vector2Int(Mathf.FloorToInt(l.x / cell), Mathf.FloorToInt(l.z / cell));
+                if (!h.TryGetValue(k, out float y) || l.y > y) h[k] = l.y;
+            }
+            Vector3 door = Portal.transform.localPosition;
+            float doorR = Mathf.Max(Portal.FullHalfSize.x, Portal.FullHalfSize.y);
+            Vector3 eye = Stage.InverseTransformPoint(Head.Head.position);
+            float best = float.MaxValue; Vector2Int bestK = default; float bestY = 0f;
+            foreach (var kv in h)
+            {
+                float y0 = kv.Value;
+                if (y0 < 0.04f || y0 > 0.30f) continue;
+                bool flat = true; float sum = 0f;
+                for (int dx = -1; dx <= 1 && flat; dx++)
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        if (!h.TryGetValue(kv.Key + new Vector2Int(dx, dz), out float y) || Mathf.Abs(y - y0) > 0.015f) { flat = false; break; }
+                        sum += y;
+                    }
+                if (!flat) continue;
+                Vector2 c = new Vector2((kv.Key.x + 0.5f) * cell, (kv.Key.y + 0.5f) * cell);
+                float fromDoor = Vector2.Distance(c, new Vector2(door.x, door.z));
+                if (fromDoor < doorR + 0.06f || fromDoor > 0.50f) continue;
+                if (Vector2.Distance(c, new Vector2(eye.x, eye.z)) > 0.70f) continue;
+                if (fromDoor < best) { best = fromDoor; bestK = kv.Key; bestY = sum / 9f; }
+            }
+            if (best == float.MaxValue) return false;
+            top = new Vector3((bestK.x + 0.5f) * cell, bestY + 0.002f, (bestK.y + 0.5f) * cell);
+            // the object's footprint: the connected cells above 2 cm around the podium
+            var seen = new System.Collections.Generic.HashSet<Vector2Int> { bestK };
+            var queue = new System.Collections.Generic.Queue<Vector2Int>(); queue.Enqueue(bestK);
+            int minX = bestK.x, maxX = bestK.x, minZ = bestK.y, maxZ = bestK.y;
+            while (queue.Count > 0 && seen.Count < 2000)
+            {
+                var k = queue.Dequeue();
+                minX = Mathf.Min(minX, k.x); maxX = Mathf.Max(maxX, k.x); minZ = Mathf.Min(minZ, k.y); maxZ = Mathf.Max(maxZ, k.y);
+                foreach (var d in new[] { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down })
+                {
+                    var n = k + d;
+                    if (seen.Contains(n) || !h.TryGetValue(n, out float y) || y < 0.02f) continue;
+                    seen.Add(n); queue.Enqueue(n);
+                }
+            }
+            float wide = Mathf.Max(maxX - minX + 1, maxZ - minZ + 1) * cell;
+            kind = bestY > 0.15f ? "tall" : bestY < 0.10f && wide > 0.15f ? "flat" : "any";
+            return true;
+        }
+
+        /// <summary>
+        /// A spot on the table right beside something real and tall (a box, a book, a mug: scene-mesh clutter at least
+        /// 6 cm high), within a hop of the trapdoor. He must stand beside it as the user sees it, never behind it: the
+        /// passthrough image cannot hide him, so standing behind a real object would show him floating in front of
+        /// it. side = which way he leans (towards the object), in his own frame.
+        /// </summary>
+        bool TryCowerSpot(out Vector3 spot, out float side)
+        {
+            spot = default; side = 1f;
+            if (Room == null) return false;
+            var clutter = new System.Collections.Generic.List<Vector3>();
+            Room.Clutter(clutter);
+            if (clutter.Count == 0) return false;
+            float top = Stage.position.y;
+            var tall = new System.Collections.Generic.List<Vector3>();
+            foreach (var c in clutter) if (c.y > top + 0.06f) tall.Add(c);
+            if (tall.Count == 0) return false;
+            Vector3 eye = Head.Head.position;
+            Vector3 door = Portal.transform.localPosition;
+            Rect r = Table;
+            float bestScore = float.MaxValue;
+            for (float x = r.xMin + 0.05f; x <= r.xMax - 0.05f; x += 0.025f)
+                for (float z = r.yMin + 0.05f; z <= r.yMax - 0.05f; z += 0.025f)
+                {
+                    var p = new Vector3(x, 0, z);
+                    float fromDoor = new Vector2(x - door.x, z - door.z).magnitude;
+                    if (fromDoor < Mathf.Max(Portal.FullHalfSize.x, Portal.FullHalfSize.y) + 0.05f || fromDoor > 0.40f) continue;
+                    Vector3 w = Stage.TransformPoint(p);
+                    Vector2 w2 = new Vector2(w.x, w.z), e2 = new Vector2(eye.x, eye.z);
+                    bool inside = false, beside = false, hidden = false;
+                    Vector3 near = default; float nearD = float.MaxValue;
+                    foreach (var c in clutter)
+                    {
+                        float d = Vector2.Distance(new Vector2(c.x, c.z), w2);
+                        if (d < 0.035f) { inside = true; break; }
+                    }
+                    if (inside) continue;
+                    foreach (var c in tall)
+                    {
+                        Vector2 c2 = new Vector2(c.x, c.z);
+                        float d = Vector2.Distance(c2, w2);
+                        if (d < 0.07f) { beside = true; if (d < nearD) { nearD = d; near = c; } }
+                        // between the user's eye and him: it would be in front of him
+                        Vector2 seg = w2 - e2; float len = seg.magnitude;
+                        if (len < 0.01f) continue;
+                        float along = Vector2.Dot(c2 - e2, seg / len);
+                        if (along > 0.02f && along < len - 0.02f && Mathf.Abs(seg.x * (c2.y - e2.y) - seg.y * (c2.x - e2.x)) / len < 0.04f) hidden = true;
+                    }
+                    if (!beside || hidden) continue;
+                    if (fromDoor < bestScore)
+                    {
+                        bestScore = fromDoor; spot = p;
+                        // lean towards the object: is it to his right or left as he faces the door?
+                        Vector3 toDoor = Stage.TransformPoint(door) - w, toObj = near - w;
+                        side = Mathf.Sign(Vector3.Dot(Vector3.Cross(Vector3.up, toDoor), toObj)) >= 0f ? -1f : 1f;
+                    }
+                }
+            return bestScore < float.MaxValue;
         }
 
         /// <summary>A free spot on the table beside the trapdoor (away from the velvet case), in stage space.</summary>
@@ -1230,14 +1415,14 @@ namespace Parlor
             return Clear(front) ? front : ClampToTable(front, 0.04f);
         }
 
-        IEnumerator HopMagicianTo(Vector3 stagePoint, float seconds)
+        IEnumerator HopMagicianTo(Vector3 stagePoint, float seconds, float arc = 0.09f)
         {
             Magician.transform.SetParent(Stage, true);
             Vector3 from = Magician.transform.localPosition;
             for (float t = 0; t < seconds; t += Time.deltaTime)
             {
                 float x = t / seconds;
-                Magician.transform.localPosition = Vector3.Lerp(from, stagePoint, x) + Vector3.up * (0.09f * 4f * x * (1f - x));
+                Magician.transform.localPosition = Vector3.Lerp(from, stagePoint, x) + Vector3.up * (arc * 4f * x * (1f - x));
                 yield return null;
             }
             Magician.transform.localPosition = stagePoint;
@@ -1378,13 +1563,41 @@ namespace Parlor
         {
             Magician.LookTarget = Head.Head.position;
             yield return Say("curtain.star");
+            bool dressed = Theatre && Theatre.Show(Site);
+            if (dressed) Note("room theatre on");
             if (Curtains) yield return Curtains.Show(Site, Head.Head);
             Sfx("applause_big", Curtains ? Curtains.Centre : Portal.transform.position, 1f);
             StartCoroutine(AudienceBounce(6f));
             Magician.Celebrate();
+            yield return new WaitForSeconds(1.2f);
 
+            // "...and you, old friend": his shadow comes back, calm, and stands beside the curtains on the real wall
+            bool friend = Curtains && Curtains.OnWall && Shadow;
+            if (friend)
+            {
+                Pose set = Curtains.SetPose; Vector2 size = Curtains.SetSize;
+                Vector3 wallRight = set.rotation * Vector3.right;
+                // hem at the bottom of the curtain set, beside it on the side it fled to (or the right)
+                float sideSign = Shadow.ExitPoint.HasValue ? Mathf.Sign(Vector3.Dot(Shadow.ExitPoint.Value - set.position, wallRight)) : 1f;
+                if (sideSign == 0f) sideSign = 1f;
+                Vector3 spot = set.position + wallRight * sideSign * (size.x * 0.5f + 0.32f) + Vector3.down * (size.y * 0.5f);
+                Magician.LookTarget = spot + Vector3.up * 0.6f;
+                Magician.SetMood(MagicianActor.Mood.Delight);
+                yield return Say("curtain.shadow");
+                Note("shadow returns as a friend");
+                Sfx("shadow_motif_warm", spot + Vector3.up * 0.5f, 0.9f);   // its motif again, resolved warm
+                yield return Shadow.ReturnAsFriend(new Pose(spot, set.rotation), Mathf.Clamp(size.y * 0.55f, 0.8f, 1.2f));
+                Sfx("applause_small", spot, 0.9f);
+                Magician.LookTarget = Head.Head.position;
+            }
+
+            // a held breath: the music falls silent, then the call to bow, all of us together
+            if (Audio) Audio.Hush(friend ? 3.2f : 2.4f);
+            yield return new WaitForSeconds(1.1f);
             // the user's bow: a head dip. Optional (cut list item 1), so its fuse is short.
             SayNow("curtain.bow");
+            Magician.Bow();
+            if (friend) StartCoroutine(Shadow.Bow());     // he and his Shadow bow first, inviting the user to join
             float baseline = PoseMath.PitchDownDegrees(Head.Head.rotation);
             var bow = new BeatGate(5f, 8f, 11f, 0.15f);
             yield return RunGate("curtain.bow", bow,
@@ -1392,6 +1605,7 @@ namespace Parlor
                 () => PoseMath.PitchDownDegrees(Head.Head.rotation) - baseline > 9f,
                 () => { Magician.Bow(); SayNow("curtain.bow"); },
                 needsHands: false);
+            if (friend) StartCoroutine(Shadow.Bow());     // all three bow together: the user, him, and his shadow
             if (bow.Result == GateEvent.Success || bow.Result == GateEvent.AltSuccess)
             {
                 Sfx("applause_big", Curtains ? Curtains.Centre : Portal.transform.position, 1f, 1.05f);
@@ -1402,6 +1616,8 @@ namespace Parlor
             Magician.Bow();
             yield return new WaitForSeconds(1.0f);
 
+            if (Theatre) Theatre.Hide();
+            if (friend) StartCoroutine(Shadow.Banish());
             if (Curtains) yield return Curtains.Hide();
             if (_bigCard) _bigCard.gameObject.SetActive(false);
             yield return Portal.AnimateWiden(1f, 0.6f);
@@ -1417,6 +1633,8 @@ namespace Parlor
 
             Magician.LookTarget = Head.Head.position;
             Magician.Wave();
+            // tomorrow's trick, previewed: on night 1 a little bird flutters up out of the trapdoor and away
+            if (Model.Night == 1 && Bird) StartCoroutine(BirdTease());
             yield return Say("encore.tomorrow");
             Token.transform.localPosition = ClampToTable(Layout.Encore, 0.05f) + Vector3.up * Layout.Encore.y;
             Token.Shown = true;
@@ -1464,6 +1682,44 @@ namespace Parlor
             yield return Portal.AnimateOpen(0f, 0.5f);
             Sfx("trap_clack", Portal.transform.position, 0.8f);
             Model.ChosenCard = -1;
+        }
+
+        IEnumerator BirdTease()
+        {
+            Vector3 from = Portal.transform.TransformPoint(0, -0.05f, 0), to = Portal.transform.TransformPoint(0.12f, 0.32f, 0.25f);
+            Bird.Show(from);
+            Sfx("bird", from, 0.8f);
+            for (float t = 0; t < 2.2f; t += Time.deltaTime)
+            {
+                float x = t / 2.2f;
+                Bird.Follow(Vector3.Lerp(from, to, Mathf.SmoothStep(0, 1, x)) + Vector3.up * Mathf.Sin(x * 18f) * 0.01f, t);
+                yield return null;
+            }
+            Sparkles.Burst(_sparkle, to, 14, 0.08f);
+            Bird.Hide();
+        }
+
+        // ------------------------------------------------------------------ start over, any time
+
+        /// <summary>Wired by ParlorApp: put the stage back in front of the user and begin again.</summary>
+        public Action RestartRequested;
+        float _bothFists;
+
+        // Both fists held for two and a half seconds starts the show over from where the user sits now (a misplaced
+        // stage, a new seat, or just "again"). Fists are used one hand at a time in the show, never both at once.
+        void Update()
+        {
+            if (Paused || Hands == null || Model == null || Model.State == ShowState.Placement) { _bothFists = 0f; return; }
+            bool both = PoseMath.Fist(Hands.Get(Handed.Left)) && PoseMath.Fist(Hands.Get(Handed.Right));
+            _bothFists = both ? _bothFists + Time.deltaTime : 0f;
+            if (_bothFists > 2.5f)
+            {
+                _bothFists = -1000f;
+                Note("restart requested (both fists)");
+                if (Captions) Captions.Show(new Line("restart", "From the top!"));
+                Sfx("whoosh", Stage.position, 0.6f, 0.8f);
+                RestartRequested?.Invoke();
+            }
         }
 
         // ------------------------------------------------------------------ small helpers

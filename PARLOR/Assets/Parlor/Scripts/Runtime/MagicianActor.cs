@@ -17,7 +17,10 @@ namespace Parlor
         public const float Scale = 1.35f;
         public const float Height = 0.18f * Scale;
 
-        enum B { Root, Hips, Chest, Head, Hat, Moustache, Lids, ArmR, ForeR, HandR, ArmL, ForeL, HandL, LegR, LegL, Wand, Count }
+        enum B { Root, Hips, Chest, Head, Hat, Moustache, Lids, ArmR, ForeR, HandR, ArmL, ForeL, HandL, LegR, LegL, Wand, Pupils, BrowL, BrowR, Mouth, Cape, Count }
+
+        /// <summary>What his face is doing: drives the brows (and nothing else), so every gesture reads on his face.</summary>
+        public enum Mood { Neutral, Delight, Worried, Angry, Sly }
 
         readonly Transform[] _bones = new Transform[(int)B.Count];
         readonly Quaternion[] _rest = new Quaternion[(int)B.Count];
@@ -46,6 +49,18 @@ namespace Parlor
         public Vector3? LookTarget;
         public bool Talking { set { _talkOn = value; } }
         bool _talkOn;
+        /// <summary>Where his eyes go (the user's moving hand, the coin). Null = wherever his head is looking.</summary>
+        public Vector3? EyeTarget;
+        /// <summary>Loudness of the line he is speaking right now, 0..1, or a negative value when unknown (then his
+        /// mouth flaps on a rhythm instead). Wired to AudioDirector.VoiceLevel.</summary>
+        public System.Func<float> VoiceLevel;
+        public string Name => "The Great Thimble";
+        Mood _mood;
+        float _browL, _browR, _browLift, _saccadeAt;
+        Vector2 _saccade, _pupil;
+        Vector3 _pupilRest, _browLRest, _browRRest, _mouthRest;
+        float _capeSwing, _capeVel, _lastYaw, _mouthOpen;
+        public void SetMood(Mood m) { _mood = m; }
         public float Stiffness = 14f;
 
         public static MagicianActor Create(Transform parent)
@@ -61,6 +76,21 @@ namespace Parlor
         }
 
         // ---------------------------------------------------------------- construction
+
+        [System.Serializable] class PartData { public string bone; public float[] v, n, c; public int[] t; }
+
+        /// <summary>A sculpted part from Resources/Art/thimble (made by tools in ArtGen/thimble), or false if absent.</summary>
+        static bool Part(MeshKit k, string name, B bone)
+        {
+            var ta = Resources.Load<TextAsset>("Art/thimble/" + name);
+            if (!ta) return false;
+            var d = JsonUtility.FromJson<PartData>(ta.text);
+            if (d == null || d.v == null || d.t == null || d.n == null || d.c == null) return false;
+            Matrix4x4 keep = k.Xf; k.Xf = Matrix4x4.identity;
+            k.Skin((int)bone).Raw(d.v, d.n, d.c, d.t);
+            k.Xf = keep;
+            return true;
+        }
 
         Transform Bone(B b, B parent, Vector3 modelPos)
         {
@@ -90,15 +120,22 @@ namespace Parlor
             Bone(B.LegR, B.Hips, new Vector3(0.0105f, 0.058f, 0));
             Bone(B.LegL, B.Hips, new Vector3(-0.0105f, 0.058f, 0));
             Bone(B.Wand, B.HandR, new Vector3(0.0265f, 0.046f, 0.004f));
+            Bone(B.Pupils, B.Head, new Vector3(0, 0.1395f, 0.0215f));
+            Bone(B.BrowL, B.Head, new Vector3(-0.0092f, 0.1478f, 0.0196f));
+            Bone(B.BrowR, B.Head, new Vector3(0.0092f, 0.1478f, 0.0196f));
+            Bone(B.Mouth, B.Head, new Vector3(0, 0.1225f, 0.0195f));
+            Bone(B.Cape, B.Chest, new Vector3(0, 0.110f, -0.0215f));
 
             var k = new MeshKit();
             Color navy = Mats.Navy, gold = Mats.Gold, white = new Color(0.98f, 0.97f, 0.95f), black = Mats.Ink;
             Color skin = Mats.Skin, hair = new Color(0.16f, 0.09f, 0.06f), burgundy = Mats.Burgundy;
 
-            // legs and shoes
+            // legs and shoes (sculpted shoes with spats when available)
+            bool shoes = Part(k, "shoe_r", B.LegR) & Part(k, "shoe_l", B.LegL);
             foreach (var (bone, x) in new[] { (B.LegR, 0.0105f), (B.LegL, -0.0105f) })
             {
                 k.Skin((int)bone).Tint(new Color(0.11f, 0.11f, 0.16f)).At(new Vector3(x, 0.006f, 0)).Capsule(0.0085f, 0.056f, 8);
+                if (shoes) continue;
                 k.Tint(black).At(new Vector3(x, 0.0055f, 0.006f), Quaternion.identity, new Vector3(0.0095f, 0.0058f, 0.016f)).Sphere(1f, 8, 6);
                 k.Tint(white).At(new Vector3(x, 0.0075f, 0.004f), Quaternion.identity, new Vector3(0.0078f, 0.0040f, 0.009f)).Sphere(1f, 6, 4);   // spats
             }
@@ -131,26 +168,39 @@ namespace Parlor
             // collar
             k.Tint(white).At(new Vector3(0, 0.110f, 0.001f)).Cylinder(0.0105f, 0.0085f, 0.006f, 10, false, false);
 
-            // head
+            // head: the sculpted head (skull, face, nose, ears, hair) when available, else primitives
+            bool sculpted = Part(k, "head", B.Head);
             k.Skin((int)B.Head);
             Vector3 hc = new Vector3(0, 0.135f, 0);
-            k.Tint(skin).At(hc, Quaternion.identity, new Vector3(0.0235f, 0.0225f, 0.0225f)).Sphere(1f, 14, 10);
-            k.Tint(skin).At(hc + new Vector3(0, -0.012f, 0.004f), Quaternion.identity, new Vector3(0.0165f, 0.0125f, 0.017f)).Sphere(1f, 10, 8);       // jaw
-            k.Tint(skin * 0.96f).At(hc + new Vector3(0, -0.002f, 0.0235f), Quaternion.identity, new Vector3(0.0042f, 0.0045f, 0.0050f)).Sphere(1f, 8, 6); // nose
+            if (!sculpted)
+            {
+                k.Tint(skin).At(hc, Quaternion.identity, new Vector3(0.0235f, 0.0225f, 0.0225f)).Sphere(1f, 14, 10);
+                k.Tint(skin).At(hc + new Vector3(0, -0.012f, 0.004f), Quaternion.identity, new Vector3(0.0165f, 0.0125f, 0.017f)).Sphere(1f, 10, 8);       // jaw
+                k.Tint(skin * 0.96f).At(hc + new Vector3(0, -0.002f, 0.0235f), Quaternion.identity, new Vector3(0.0042f, 0.0045f, 0.0050f)).Sphere(1f, 8, 6); // nose
+            }
             foreach (float s in new[] { -1f, 1f })
             {
-                k.Tint(skin * 0.95f).At(hc + new Vector3(s * 0.0232f, 0, 0), Quaternion.identity, new Vector3(0.0035f, 0.0058f, 0.0045f)).Sphere(1f, 6, 6);    // ear
+                if (!sculpted) k.Tint(skin * 0.95f).At(hc + new Vector3(s * 0.0232f, 0, 0), Quaternion.identity, new Vector3(0.0035f, 0.0058f, 0.0045f)).Sphere(1f, 6, 6);    // ear
                 k.Tint(white).At(hc + new Vector3(s * 0.0090f, 0.0048f, 0.0188f), Quaternion.identity, new Vector3(0.0056f, 0.0064f, 0.0040f)).Sphere(1f, 8, 6);  // eye
+                k.Skin((int)B.Pupils);
                 k.Tint(new Color(0.20f, 0.12f, 0.08f)).At(hc + new Vector3(s * 0.0086f, 0.0044f, 0.0220f), Quaternion.identity, new Vector3(0.0028f, 0.0034f, 0.0018f)).Sphere(1f, 6, 6);
                 k.Tint(white).At(hc + new Vector3(s * 0.0078f, 0.0058f, 0.0236f), Quaternion.identity, Vector3.one * 0.0009f).Sphere(1f, 4, 4);                 // eye glint
-                k.Tint(hair).At(hc + new Vector3(s * 0.0092f, 0.0128f, 0.0196f), Quaternion.Euler(0, 0, s * -12), new Vector3(0.0062f, 0.0014f, 0.0020f)).Sphere(1f, 6, 4);  // brow
+                k.Skin((int)(s > 0 ? B.BrowR : B.BrowL));
+                k.Tint(hair).At(hc + new Vector3(s * 0.0092f, 0.0128f, 0.0196f), Quaternion.Euler(0, 0, s * -12), new Vector3(0.0068f, 0.0017f, 0.0022f)).Sphere(1f, 6, 4);  // brow
+                k.Skin((int)B.Head);
+                if (sculpted) continue;
                 k.Tint(hair).At(hc + new Vector3(s * 0.0205f, -0.004f, 0.006f), Quaternion.identity, new Vector3(0.0040f, 0.0105f, 0.0080f)).Sphere(1f, 6, 6);   // sideburn
                 k.Tint(new Color(0.96f, 0.62f, 0.55f)).At(hc + new Vector3(s * 0.0145f, -0.0055f, 0.0165f), Quaternion.identity, new Vector3(0.0048f, 0.0034f, 0.0030f)).Sphere(1f, 6, 4); // cheek
             }
-            k.Tint(hair).At(hc + new Vector3(0, 0.004f, -0.006f), Quaternion.identity, new Vector3(0.0238f, 0.0205f, 0.0205f)).Sphere(1f, 10, 8);     // hair at the back
-            // smile
+            if (!sculpted) k.Tint(hair).At(hc + new Vector3(0, 0.004f, -0.006f), Quaternion.identity, new Vector3(0.0238f, 0.0205f, 0.0205f)).Sphere(1f, 10, 8);     // hair at the back
+            // smile: on the Mouth bone, which opens with his voice
+            k.Skin((int)B.Mouth);
             k.Tint(new Color(0.45f, 0.10f, 0.10f)).At(hc + new Vector3(0, -0.0125f, 0.0190f), Quaternion.identity, new Vector3(0.0068f, 0.0022f, 0.0030f)).Sphere(1f, 8, 4);
             k.Tint(white).At(hc + new Vector3(0, -0.0115f, 0.0200f), Quaternion.identity, new Vector3(0.0050f, 0.0011f, 0.0020f)).Sphere(1f, 6, 4);
+
+            // cape: a short burgundy evening cape from the shoulders, flaring at the hem; it swings when he turns or hops
+            // (behind the coat: the chest's back is at z = -0.0185, the folds are ±0.0022 deep)
+            k.Skin((int)B.Cape).Tint(burgundy * 0.85f).At(new Vector3(0, 0.110f, -0.0215f), Quaternion.Euler(8, 0, 0)).Drape(0.050f, 0.086f, 3, 0.0022f, 5, -0.45f, 0f);
 
             // moustache: two tapering curls
             k.Skin((int)B.Moustache).Tint(hair);
@@ -167,20 +217,25 @@ namespace Parlor
             foreach (float s in new[] { -1f, 1f })
                 k.At(new Vector3(s * 0.0090f, 0.1415f, 0.0190f), Quaternion.identity, new Vector3(0.0062f, 0.0068f, 0.0046f)).At2(new Vector3(0, -0.5f, 0)).Sphere(1f, 8, 6);
 
-            // top hat
+            // top hat (sculpted when available)
+            if (!Part(k, "hat", B.Hat))
+            {
             k.Skin((int)B.Hat);
             k.Tint(black).At(new Vector3(0, 0.1505f, -0.001f), Quaternion.Euler(-4, 0, 3)).Cylinder(0.0300f, 0.0300f, 0.0026f, 16);
             k.Tint(new Color(0.10f, 0.08f, 0.10f)).At(new Vector3(0, 0.1525f, -0.001f), Quaternion.Euler(-4, 0, 3)).Cylinder(0.0185f, 0.0208f, 0.0330f, 16);
             k.Tint(new Color(0.62f, 0.08f, 0.12f)).At(new Vector3(0, 0.1530f, -0.001f), Quaternion.Euler(-4, 0, 3)).Cylinder(0.0190f, 0.0192f, 0.0068f, 16, false, false);
             k.Tint(gold).At(new Vector3(0.0005f, 0.1562f, 0.0183f), Quaternion.identity, new Vector3(0.0024f, 0.0034f, 0.0010f)).Sphere(1f, 5, 4);
+            }
 
-            // arms, cuffs, gloves
+            // arms, cuffs, gloves (sculpted gloves with fingers when available)
+            bool gloves = Part(k, "hand_r", B.HandR) & Part(k, "hand_l", B.HandL);
             foreach (var (arm, fore, hand, x) in new[] { (B.ArmR, B.ForeR, B.HandR, 0.0265f), (B.ArmL, B.ForeL, B.HandL, -0.0265f) })
             {
                 k.Skin((int)arm).Tint(navy).At(new Vector3(x, 0.077f, 0)).Capsule(0.0074f, 0.033f, 8);
                 k.Skin((int)fore).Tint(navy).At(new Vector3(x, 0.052f, 0)).Capsule(0.0066f, 0.030f, 8);
                 k.Tint(gold).At(new Vector3(x, 0.0545f, 0)).Cylinder(0.0074f, 0.0074f, 0.0032f, 8, false, false);
                 k.Tint(white).At(new Vector3(x, 0.0520f, 0)).Cylinder(0.0070f, 0.0070f, 0.0030f, 8, false, false);
+                if (gloves) continue;
                 k.Skin((int)hand).Tint(white).At(new Vector3(x, 0.0455f, 0), Quaternion.identity, new Vector3(0.0082f, 0.0092f, 0.0070f)).Sphere(1f, 8, 6);
                 k.At(new Vector3(x, 0.0470f, 0.0062f), Quaternion.identity, new Vector3(0.0030f, 0.0044f, 0.0030f)).Sphere(1f, 5, 4);   // thumb
             }
@@ -227,6 +282,10 @@ namespace Parlor
             _hipsRest = _bones[(int)B.Hips].localPosition;
             _bones[(int)B.Wand].localScale = Vector3.zero;
             _bones[(int)B.Lids].localScale = new Vector3(1, 0.02f, 1);
+            _pupilRest = _bones[(int)B.Pupils].localPosition;
+            _browLRest = _bones[(int)B.BrowL].localPosition;
+            _browRRest = _bones[(int)B.BrowR].localPosition;
+            _mouthRest = _bones[(int)B.Mouth].localPosition;
             _blinkAt = 1.5f;
             Rest();
         }
@@ -239,12 +298,14 @@ namespace Parlor
         void Rest()
         {
             for (int i = 0; i < _target.Length; i++) _target[i] = Vector3.zero;
+            _mood = Mood.Neutral;
             Set(B.ArmR, 6, 0, 14); Set(B.ForeR, -22, 0, 0);
             Set(B.ArmL, 6, 0, -14); Set(B.ForeL, -22, 0, 0);
         }
 
         void Update()
         {
+            if (!_bones[0] || !_bones[(int)B.Count - 1]) return;     // torn down (re-placement, leaving Play mode)
             float dt = Time.deltaTime;
             float tNow = Time.time;
             float k = 1f - Mathf.Exp(-Stiffness * dt);
@@ -252,14 +313,19 @@ namespace Parlor
             // breathing, weight shift, and talking bob layered on top of the gesture targets
             float breathe = Mathf.Sin(tNow * 1.9f);
             _talk = Mathf.MoveTowards(_talk, _talkOn ? 1f : 0f, dt * 6f);
-            float chatter = _talk * Mathf.Sin(tNow * 17f);
+            float lv = VoiceLevel != null ? VoiceLevel() : -1f;
+            float openTo = lv >= 0f ? lv : _talk * (0.5f + 0.5f * Mathf.Sin(tNow * 17f));
+            _mouthOpen = Mathf.Lerp(_mouthOpen, openTo, 1f - Mathf.Exp(-30f * dt));
+            // with a known voice level, the head nods on the accents of the line rather than on a fixed beat
+            float chatter = lv >= 0f ? (_mouthOpen - 0.35f) * 1.6f : _talk * Mathf.Sin(tNow * 17f);
 
             for (int i = 0; i < (int)B.Count; i++)
             {
                 Vector3 e = _target[i];
                 if (i == (int)B.Chest) e += new Vector3(breathe * 1.2f, 0, Mathf.Sin(tNow * 0.9f) * 1.5f);
                 if (i == (int)B.Head) e += new Vector3(chatter * 3.0f + _lookPitch, _lookYaw, Mathf.Sin(tNow * 1.3f) * 2f + chatter * 1.5f);
-                if (i == (int)B.Moustache) e += new Vector3(chatter * 9f, 0, Mathf.Sin(tNow * 2.3f) * 2f);
+                if (i == (int)B.Moustache) e += new Vector3(-_mouthOpen * 16f, 0, Mathf.Sin(tNow * 2.3f) * 2f);
+                if (i == (int)B.Cape) e += new Vector3(_capeSwing + breathe * 1.5f, 0, 0);
                 if (i == (int)B.Hat) e += new Vector3(chatter * -2f, 0, _hatAskew);
                 if (i == (int)B.Head && _shake > 0f) e += new Vector3(0, Mathf.Sin(tNow * 38f) * 14f * _shake, 0);
                 if (i == (int)B.ArmR || i == (int)B.ArmL) e += new Vector3(breathe * 1.5f, 0, 0);
@@ -289,6 +355,53 @@ namespace Parlor
 
             UpdateMonster(dt, tNow);
             UpdateLook(dt);
+            UpdateFace(dt, tNow);
+        }
+
+        // Brows from the mood, pupils on the eye target with small saccades, mouth open with the voice, cape swing.
+        void UpdateFace(float dt, float tNow)
+        {
+            Mood m = _monster > 0.5f ? Mood.Angry : _mood;
+            // (degrees of roll for the left and right brow, lift in model metres); inner ends up = worried
+            float l = 0f, r = 0f, lift = 0f;
+            switch (m)
+            {
+                case Mood.Delight: l = -6f; r = 6f; lift = 0.0019f; break;
+                case Mood.Worried: l = 20f; r = -20f; lift = 0.0010f; break;
+                case Mood.Angry: l = -22f; r = 22f; lift = -0.0007f; break;
+                case Mood.Sly: l = -4f; r = -14f; lift = 0.0004f; break;
+            }
+            float kb = 1f - Mathf.Exp(-12f * dt);
+            _browL = Mathf.Lerp(_browL, l, kb); _browR = Mathf.Lerp(_browR, r, kb); _browLift = Mathf.Lerp(_browLift, lift, kb);
+            float slyR = m == Mood.Sly ? 0.0012f : 0f;
+            _bones[(int)B.BrowL].localPosition = _browLRest + Vector3.up * _browLift;
+            _bones[(int)B.BrowR].localPosition = _browRRest + Vector3.up * (_browLift + slyR);
+            _bones[(int)B.BrowL].localRotation = _rest[(int)B.BrowL] * Quaternion.Euler(0, 0, _browL);
+            _bones[(int)B.BrowR].localRotation = _rest[(int)B.BrowR] * Quaternion.Euler(0, 0, _browR);
+
+            // eyes: towards the target, inside the whites; a tiny darting saccade every second or two keeps them alive
+            _saccadeAt -= dt;
+            if (_saccadeAt <= 0f) { _saccade = Random.insideUnitCircle * 0.00025f; _saccadeAt = Random.Range(0.6f, 1.8f); }
+            Vector2 want = _saccade;
+            Vector3? target = EyeTarget ?? LookTarget;
+            var pupils = _bones[(int)B.Pupils];
+            if (target.HasValue)
+            {
+                Vector3 d = HeadBone.InverseTransformDirection(target.Value - pupils.position);
+                if (d.z > 0.01f) want += new Vector2(Mathf.Clamp(d.x / d.z, -1f, 1f) * 0.0013f, Mathf.Clamp(d.y / d.z, -1f, 1f) * 0.0010f);
+            }
+            _pupil = Vector2.Lerp(_pupil, want, 1f - Mathf.Exp(-25f * dt));
+            pupils.localPosition = _pupilRest + new Vector3(_pupil.x, _pupil.y, 0);
+
+            var mouth = _bones[(int)B.Mouth];
+            mouth.localScale = new Vector3(1f - 0.15f * _mouthOpen, 1f + 2.2f * _mouthOpen, 1f);
+            mouth.localPosition = _mouthRest + Vector3.down * (0.0009f * _mouthOpen);
+
+            // cape: a damped spring kicked by turning and hopping
+            float yawVel = Mathf.DeltaAngle(_lastYaw, _yaw) / Mathf.Max(dt, 1e-4f); _lastYaw = _yaw;
+            float force = -_capeSwing * 60f - _capeVel * 9f + Mathf.Abs(yawVel) * 0.35f + Mathf.Max(0f, -_hopVel) * 40f + _hopVel * -15f;
+            _capeVel += force * dt;
+            _capeSwing = Mathf.Clamp(_capeSwing + _capeVel * dt, -12f, 35f);
         }
 
         void UpdateMonster(float dt, float tNow)
@@ -383,7 +496,57 @@ namespace Parlor
         // ---------------------------------------------------------------- gestures
 
         public void Idle() { Play(IdleRoutine()); }
-        IEnumerator IdleRoutine() { Rest(); _wandOut = false; yield break; }
+        // Idle is never a statue: every few seconds, when he is not speaking, a small habit of his.
+        IEnumerator IdleRoutine()
+        {
+            Rest(); _wandOut = false;
+            int n = Random.Range(0, 4);
+            while (true)
+            {
+                yield return Wait(Random.Range(4.5f, 7.5f));
+                if (_talkOn) continue;
+                switch (n++ % 4)
+                {
+                    case 0:   // straightens his hat by the brim
+                        Set(B.ArmR, -150, 0, 34); Set(B.ForeR, -95, 0, 0); Set(B.Head, 4, 0, -6);
+                        yield return Wait(0.35f);
+                        Set(B.Hat, 0, 0, -9); yield return Wait(0.25f);
+                        Set(B.Hat, 0, 0, 3); yield return Wait(0.25f);
+                        Set(B.Hat, 0, 0, 0); break;
+                    case 1:   // taps his foot, glancing at the user: "any time you're ready"
+                        _mood = Mood.Sly;
+                        for (int i = 0; i < 4; i++) { Set(B.LegR, -18, 0, 0); yield return Wait(0.16f); Set(B.LegR, 0, 0, 0); yield return Wait(0.16f); }
+                        _mood = Mood.Neutral; break;
+                    case 2:   // dusts off a shoulder, very pleased with himself
+                        Set(B.ArmL, -95, 30, -10); Set(B.ForeL, -120, 0, 0); Set(B.Head, 0, 22, 0);
+                        for (int i = 0; i < 2; i++) { Set(B.ForeL, -132, 0, 0); yield return Wait(0.14f); Set(B.ForeL, -112, 0, 0); yield return Wait(0.14f); }
+                        _mood = Mood.Delight; break;
+                    default:  // twirls the end of his moustache
+                        Set(B.ArmL, -110, 0, -14); Set(B.ForeL, -118, 0, 0); _mood = Mood.Sly;
+                        for (int i = 0; i < 3; i++) { Set(B.HandL, 0, 0, 25); yield return Wait(0.18f); Set(B.HandL, 0, 0, -10); yield return Wait(0.18f); }
+                        break;
+                }
+                yield return Wait(0.5f);
+                Rest();
+            }
+        }
+
+        /// <summary>Cowering beside something big: crouched, leaning on it, peeking out the other way. Holds.</summary>
+        public void Cower(float side) { Play(CowerRoutine(side)); }
+        IEnumerator CowerRoutine(float side)
+        {
+            Rest(); _mood = Mood.Worried;
+            Set(B.Hips, 14, 0, side * 8); Set(B.LegR, -22, 0, 0); Set(B.LegL, -22, 0, 0);
+            Set(B.Chest, 8, 0, side * 14);
+            Set(B.ArmR, -105, 0, 24); Set(B.ForeR, -115, 0, 0);
+            Set(B.ArmL, -105, 0, -24); Set(B.ForeL, -115, 0, 0);
+            for (int i = 0; ; i++)
+            {
+                // trembling, and peeking out now and then
+                Set(B.Head, -4, (i % 6 < 2 ? -side * 32f : -side * 6f), i % 2 == 0 ? 3 : -3);
+                yield return Wait(0.12f);
+            }
+        }
 
         /// <summary>A deep theatrical bow, hat arm sweeping out.</summary>
         public float Bow()
@@ -393,7 +556,7 @@ namespace Parlor
         }
         IEnumerator BowRoutine()
         {
-            Rest();
+            Rest(); _mood = Mood.Delight;
             Set(B.ArmR, -20, 0, 70); Set(B.ForeR, -30, 0, 0);
             Set(B.ArmL, 30, 0, -20); Set(B.ForeL, -80, 0, 0);
             yield return Wait(0.25f);
@@ -411,7 +574,7 @@ namespace Parlor
         }
         IEnumerator WaveRoutine()
         {
-            Rest();
+            Rest(); _mood = Mood.Delight;
             Set(B.ArmR, 0, 0, 150);
             for (int i = 0; i < 4; i++)
             {
@@ -430,7 +593,7 @@ namespace Parlor
         }
         IEnumerator ShowHandsRoutine()
         {
-            Rest();
+            Rest(); _mood = Mood.Sly;
             for (int i = 0; i < 2; i++)
             {
                 Set(B.ArmR, -70, 0, 28); Set(B.ForeR, -35, 0, 0);
@@ -482,7 +645,7 @@ namespace Parlor
         }
         IEnumerator PresentRoutine()
         {
-            Rest();
+            Rest(); _mood = Mood.Delight;
             Set(B.ArmR, -78, 0, 16); Set(B.ForeR, -28, 0, 0);
             Set(B.ArmL, 14, 0, -34); Set(B.ForeL, -60, 0, 0);
             Set(B.Chest, -4, -8, 0);
@@ -515,7 +678,7 @@ namespace Parlor
         }
         IEnumerator CelebrateRoutine()
         {
-            Rest();
+            Rest(); _mood = Mood.Delight;
             Set(B.ArmR, 0, 0, 155); Set(B.ArmL, 0, 0, -155);
             Set(B.ForeR, 0, 0, 15); Set(B.ForeL, 0, 0, -15);
             Set(B.Head, -14, 0, 0);
@@ -532,7 +695,7 @@ namespace Parlor
         }
         IEnumerator VanishDemoRoutine()
         {
-            Rest();
+            Rest(); _mood = Mood.Sly;
             Set(B.ArmR, -82, 0, 10); Set(B.ForeR, -20, 0, 0); Set(B.Head, 10, -14, 0);
             yield return Wait(0.7f);
             HandClosed(true);
@@ -571,7 +734,7 @@ namespace Parlor
         }
         IEnumerator PonderRoutine()
         {
-            Rest();
+            Rest(); _mood = Mood.Sly;
             Set(B.ArmL, -40, 0, -6); Set(B.ForeL, -125, 0, 0);
             Set(B.Head, 6, 0, 10); Set(B.Chest, 0, 8, 0);
             yield return Wait(1.4f);
@@ -586,7 +749,7 @@ namespace Parlor
         }
         IEnumerator KnockRoutine()
         {
-            Rest();
+            Rest(); _mood = Mood.Delight;
             Set(B.Head, -30, 0, 0);
             for (int i = 0; i < 3; i++)
             {
@@ -606,7 +769,7 @@ namespace Parlor
         }
         IEnumerator PanicRoutine(float seconds)
         {
-            Rest();
+            Rest(); _mood = Mood.Worried;
             for (float t = 0; t < seconds; t += 0.18f)
             {
                 bool a = Mathf.RoundToInt(t / 0.18f) % 2 == 0;
@@ -640,7 +803,7 @@ namespace Parlor
         public void Struggle() { Play(StruggleRoutine()); }
         IEnumerator StruggleRoutine()
         {
-            Rest();
+            Rest(); _mood = Mood.Worried;
             Set(B.ArmR, -150, 0, 30); Set(B.ForeR, -110, 0, 0);
             Set(B.ArmL, -150, 0, -30); Set(B.ForeL, -110, 0, 0);
             Set(B.Chest, 12, 0, 0);
@@ -655,7 +818,7 @@ namespace Parlor
         }
         IEnumerator SheepishRoutine()
         {
-            Rest();
+            Rest(); _mood = Mood.Worried;
             Set(B.ArmR, -150, 0, 20); Set(B.ForeR, -120, 0, 0); Set(B.Head, 12, 0, -10);
             for (int i = 0; i < 3; i++) { Set(B.ForeR, i % 2 == 0 ? -125 : -105, 0, 0); yield return Wait(0.25f); }
             Set(B.Hips, 14, 0, 0); Set(B.Chest, 10, 0, 0);
@@ -667,7 +830,7 @@ namespace Parlor
         public void Dragged() { Play(DraggedRoutine()); }
         IEnumerator DraggedRoutine()
         {
-            Rest();
+            Rest(); _mood = Mood.Worried;
             for (int i = 0; ; i++)
             {
                 Set(B.ArmR, -170, 0, i % 2 == 0 ? 10 : 30); Set(B.ArmL, -170, 0, i % 2 == 0 ? -30 : -10);

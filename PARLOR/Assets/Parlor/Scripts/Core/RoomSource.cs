@@ -63,6 +63,8 @@ namespace Parlor
         /// model has no box for. World space.
         /// </summary>
         void Clutter(List<Vector3> into) { }
+        /// <summary>Real doors and windows (frames), as rectangles on their walls, forward into the room.</summary>
+        void Openings(List<WallSurface> into) { }
         /// <summary>World height of the real floor, when the room knows it.</summary>
         bool TryFloorY(out float y) { y = 0f; return false; }
     }

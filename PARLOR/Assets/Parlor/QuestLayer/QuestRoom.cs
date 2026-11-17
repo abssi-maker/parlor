@@ -165,6 +165,27 @@ namespace Parlor.Quest
             return true;
         }
 
+        public void Openings(List<WallSurface> into)
+        {
+            if (!Available) return;
+            const MRUKAnchor.SceneLabels openings = MRUKAnchor.SceneLabels.DOOR_FRAME | MRUKAnchor.SceneLabels.WINDOW_FRAME;
+            foreach (var room in MRUK.Instance.Rooms)
+            {
+                Vector3 centre = room.FloorAnchor ? room.FloorAnchor.GetAnchorCenter() : room.transform.position;
+                foreach (var a in room.Anchors)
+                {
+                    if (!a || !a.HasAnyLabel(openings) || !a.PlaneRect.HasValue) continue;
+                    Transform t = a.transform;
+                    Rect r = a.PlaneRect.Value;
+                    Vector3 pos = t.TransformPoint(new Vector3(r.center.x, r.center.y, 0));
+                    Vector3 n = Vector3.ProjectOnPlane(t.forward, Vector3.up).normalized;
+                    if (n.sqrMagnitude < 0.5f) continue;
+                    if (Vector3.Dot(n, centre - pos) < 0f) n = -n;
+                    into.Add(new WallSurface { Pose = new Pose(pos, Quaternion.LookRotation(n, Vector3.up)), Size = r.size });
+                }
+            }
+        }
+
         public void Walls(List<WallSurface> into)
         {
             if (!Available) return;

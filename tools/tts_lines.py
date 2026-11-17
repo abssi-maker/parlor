@@ -19,9 +19,19 @@ SRC = pathlib.Path(__file__).resolve().parent.parent / "PARLOR/Assets/Parlor/Scr
 # Lines spoken by the thing that possesses him: same voice, played as a pantomime villain.
 STYLES = {
     "vo_mishap_monster": ("Voice a pantomime villain possessing a tiny stage magician: slow, deep, growling, gleefully menacing, "
-                          "comic rather than truly frightening, leaning hard on the capitalised words. Say only the transcript, exactly as written."),
+                          "comic rather than truly frightening, leaning hard on the capitalised words, at a brisk natural speaking pace with no long pauses. Say only the transcript, exactly as written."),
     "vo_mishap_dragged": ("Voice a tiny Victorian stage magician being dragged away by a monster: rising comic panic, fast, "
                           "breathless, ending in a squeak. Say only the transcript, exactly as written."),
+    "vo_mishap_hide": ("Voice a tiny Victorian stage magician hiding behind a box from a monster, peeking out: a nervous, "
+                       "dignified stage whisper, comic. Say only the transcript, exactly as written."),
+    "vo_mishap_pity": ("Voice a tiny Victorian stage magician watching his own runaway shadow disappear: tender, wistful, "
+                       "quietly fond, slower. Say only the transcript, exactly as written."),
+    "vo_n2_mishap_pity": ("Voice a tiny Victorian stage magician, fondly exasperated with his sulking shadow: warm, a little "
+                          "amused. Say only the transcript, exactly as written."),
+    "vo_n3_mishap_pity": ("Voice a tiny Victorian stage magician admitting he would miss his troublesome shadow: warm, "
+                          "touching, a smile in the voice, at a natural conversational pace with no long pauses. Say only the transcript, exactly as written."),
+    "vo_curtain_shadow": ("Voice a tiny Victorian stage magician coaxing his shy shadow out to share the applause: warm, "
+                          "generous, gentle, then proud. Say only the transcript, exactly as written."),
     "vo_mishap_help": ("Voice a tiny Victorian stage magician whispering urgently from inside a monster that has possessed him: "
                        "a hoarse stage whisper, quick, comic. Say only the transcript, exactly as written."),
 }

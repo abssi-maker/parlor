@@ -116,6 +116,8 @@ namespace Parlor
             Director.Title = TitleCard.Create(Stage);
             Director.Dimmer = RoomDimmer.Create(Stage, Head);
             Director.Shadow = WallShadow.Create(Stage, Room);
+            Director.Theatre = RoomTheatre.Create(Stage, Room);
+            Director.Magician.VoiceLevel = Director.Audio.VoiceLevel;
             Director.Claw = ShadowClaw.Create(Stage);
             Director.Room = Room;
             Director.OneHanded = NightStore.OneHanded;
@@ -123,6 +125,7 @@ namespace Parlor
             Director.NightCompleted = NightStore.CompleteNight;
             Director.DebugGesture = OnDebugGesture;
             Director.HouseLights = level => HouseLights?.Invoke(level);
+            Director.RestartRequested = () => Replace();
 
             int night = Options.Night > 0 ? Options.Night : NightStore.CurrentNight;
             Director.Init(night);

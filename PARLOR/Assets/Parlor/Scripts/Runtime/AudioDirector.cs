@@ -20,7 +20,9 @@ namespace Parlor
         AudioLowPassFilter _followLp;
         AudioReverbFilter _followRv;
         Transform _followTarget;
-        float _duckUntil;
+        float _duckUntil, _hushUntil;
+        /// <summary>Music down to silence for a moment (the held breath before the bow).</summary>
+        public void Hush(float seconds) { _hushUntil = Time.time + seconds; }
         bool _spatializer;
         public bool Muted;
         /// <summary>Pitch for recorded lines (1 = as recorded). Lowered for the possessed magician's voice.</summary>
@@ -119,6 +121,33 @@ namespace Parlor
         }
 
         public bool VoicePlaying => _voice && _voice.isPlaying;
+
+        // lip-sync: per-clip loudness, 30 frames a second, precomputed by tools/voice_envelopes.py
+        Dictionary<string, (float fps, string digits)> _env;
+
+        /// <summary>
+        /// How loud the line being spoken is right now (0 = mouth shut, 1 = wide open); 0 when he is silent, and -1
+        /// while a clip without an envelope plays (the mouth then flaps on a rhythm).
+        /// </summary>
+        public float VoiceLevel()
+        {
+            if (!_voice || !_voice.isPlaying || !_voice.clip) return 0f;
+            if (_env == null)
+            {
+                _env = new Dictionary<string, (float, string)>();
+                var ta = Resources.Load<TextAsset>("Audio/vo_envelopes");
+                if (ta)
+                    foreach (var line in ta.text.Split('\n'))
+                    {
+                        var parts = line.Trim().Split(' ');
+                        if (parts.Length == 3 && float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float fps))
+                            _env[parts[0]] = (fps, parts[2]);
+                    }
+            }
+            if (!_env.TryGetValue(_voice.clip.name, out var e)) return -1f;
+            int i = (int)(_voice.time * e.fps);
+            return i >= 0 && i < e.digits.Length ? (e.digits[i] - '0') / 9f : 0f;
+        }
         public bool MusicDucked => Time.time < _duckUntil;
 
         public void StartMusic(Vector3 worldPos)
@@ -167,8 +196,9 @@ namespace Parlor
 
         void Update()
         {
-            float target = Muted ? 0f : (MusicDucked ? DuckedVolume : MusicVolume);
-            _music.volume = Mathf.MoveTowards(_music.volume, target, Time.deltaTime * 0.7f);
+            bool hushed = Time.time < _hushUntil;
+            float target = Muted || hushed ? 0f : (MusicDucked ? DuckedVolume : MusicVolume);
+            _music.volume = Mathf.MoveTowards(_music.volume, target, Time.deltaTime * (hushed ? 1.2f : 0.7f));
             if (_followTarget && _follow.isPlaying) _follow.transform.position = _followTarget.position;
         }
     }

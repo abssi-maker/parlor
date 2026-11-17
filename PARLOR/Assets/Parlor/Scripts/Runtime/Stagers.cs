@@ -16,6 +16,9 @@ namespace Parlor
         Transform _root, _left, _right, _valance, _boxes, _backdrop, _spot;
         float _shown;
         public bool OnWall { get; private set; }
+        /// <summary>Where the set hangs (centre, facing the user) and its size; valid after Show.</summary>
+        public Pose SetPose { get; private set; }
+        public Vector2 SetSize { get; private set; }
         public Vector3 Centre => _root ? _root.position : transform.position;
 
         public static WallCurtainStager Create(Transform stage, IRoomSource room)
@@ -75,6 +78,7 @@ namespace Parlor
                 set = new Pose(pos, transform.parent.rotation);
             }
             Rebuild(set, size);
+            SetPose = set; SetSize = size;
             for (float t = 0; t < 1.4f; t += Time.deltaTime) { Apply(Mathf.SmoothStep(0, 1, t / 1.4f)); yield return null; }
             Apply(1f);
         }
