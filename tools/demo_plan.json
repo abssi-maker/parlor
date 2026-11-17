@@ -47,7 +47,7 @@
    ]
   },
   {
-   "from": "beat Arrival+0.7",
+   "from": 0.2,
    "to": "podium:-0.1",
    "act": "ACT 1  ·  THE TRICKS",
    "do": "A trapdoor opens in your real table.",
@@ -57,7 +57,7 @@
    "from": "podium:",
    "to": "say podium.+6.0",
    "act": "ACT 1  ·  THE TRICKS",
-   "do": "He hops onto YOUR box.",
+   "do": "He springs onto something real on YOUR table.",
    "shows": "Scene mesh: your real things become his set"
   },
   {
@@ -86,20 +86,13 @@
   },
   {
    "from": "say coin.lend-0.3",
-   "to": "gate coin.pick open+1.5",
+   "to": "gate coin.pick open+0.8",
    "do": "Pinch the coin he lends you.",
    "shows": "Hand tracking: pinch to grab",
    "y": 190
   },
   {
-   "from": "gate coin.pick →-1.0",
-   "to": "say coin.watch",
-   "do": "Carry it. Set it down anywhere.",
-   "shows": "Pinch, carry, release on the real tabletop",
-   "y": 190
-  },
-  {
-   "from": "say coin.watch",
+   "from": "say coin.watch+2.2",
    "to": "say coin.caught-0.3",
    "y": 60,
    "do": "Lean in. The table opens under YOUR coin.",
@@ -117,13 +110,6 @@
    "shows": ""
   },
   {
-   "from": "beat PalmCoin",
-   "to": "beat PalmCoin+1.6",
-   "do": "Open your palm.",
-   "shows": "Palm-up pose detection",
-   "y": 190
-  },
-  {
    "from": "gate palm.offer →-0.9",
    "to": "beat Lesson-0.1",
    "zoom": {
@@ -131,20 +117,14 @@
     "y": 370,
     "w": 680
    },
-   "do": "The coin appears in your hand.",
+   "do": "Open your palm: the coin appears in it.",
    "shows": "It rides your palm as you move"
-  },
-  {
-   "from": "say lesson.demo-0.3",
-   "to": "gate lesson.close open+0.8",
-   "do": "He teaches you a real trick: the Vanish.",
-   "shows": "Learn it now. You will need it later"
   },
   {
    "from": "gate lesson.close →-0.8",
    "to": "say lesson.bravo+0.9",
-   "do": "Close your fist... open it. Gone!",
-   "shows": "Fist and open-hand poses"
+   "do": "He teaches you the Vanish: fist, open. Gone!",
+   "shows": "Fist and open-hand poses. Remember it"
   },
   {
    "from": "say lesson.friend",
@@ -166,7 +146,7 @@
   },
   {
    "from": "say mishap.hey+0.6",
-   "to": "gate mishap.hold open+1.2",
+   "to": "hides beside a real object-0.6",
    "act": "ACT 2  ·  THE MISHAP",
    "do": "...and steals the coin. The lights flicker.",
    "shows": "Your real room dims around the show"
@@ -179,15 +159,15 @@
    "shows": "Beside, never behind: passthrough can't hide him"
   },
   {
-   "from": "gate mishap.hold →-3.7",
+   "from": "gate mishap.hold →-1.5",
    "to": "monster rises-0.2",
    "act": "ACT 2  ·  THE MISHAP",
    "do": "Hold the trapdoor shut with both hands!",
    "shows": "Two-handed hold, tracked while it bangs"
   },
   {
-   "from": "monster rises-0.2",
-   "to": "gate mishap.close open+1.0",
+   "from": "say mishap.monster-1.6",
+   "to": "gate mishap.close open+0.3",
    "y": 300,
    "act": "ACT 2  ·  THE MISHAP",
    "do": "His own Shadow possesses him.",
@@ -195,7 +175,7 @@
   },
   {
    "from": "gate mishap.close →-1.0",
-   "to": "say mishap.ahem+1.7",
+   "to": "gate mishap.open →+0.2",
    "y": 300,
    "act": "ACT 2  ·  THE MISHAP",
    "do": "Banish it with the Vanish: fist, then open!",
@@ -205,22 +185,16 @@
    "from": "gate mishap.open →+0.2",
    "to": "say mishap.pity+7.3",
    "act": "ACT 2  ·  THE MISHAP",
-   "do": "It flees through your real door.",
-   "shows": "MRUK door and window labels"
-  },
-  {
-   "from": "beat CardFinale",
-   "to": "gate finale.lift open+0.9",
-   "act": "ACT 3  ·  THE FINALE",
-   "do": "Cover the velvet case with a flat hand.",
-   "shows": "Palm-down cover gesture"
+   "do": "Banished, it runs off along your real wall.",
+   "shows": "Out through a real door or window when the scan has one",
+   "y": 200
   },
   {
    "from": "say finale.empty-0.3",
-   "to": "say finale.yours-0.5",
+   "to": "say finale.empty+3.4",
    "act": "ACT 3  ·  THE FINALE",
-   "do": "Lift: empty! Then where is your card?",
-   "shows": ""
+   "do": "Cover the case with a flat hand, lift: empty!",
+   "shows": "Palm-down cover gesture"
   },
   {
    "from": "say finale.yours-0.5",
