@@ -15,6 +15,7 @@ namespace Parlor
         IRoomSource _room;
         Transform _root, _left, _right, _valance, _boxes, _backdrop, _spot;
         float _shown;
+        Transform[] _audience;                 // cached: no per-frame Find
         public bool OnWall { get; private set; }
         /// <summary>Where the set hangs (centre, facing the user) and its size; valid after Show.</summary>
         public Pose SetPose { get; private set; }
@@ -96,6 +97,7 @@ namespace Parlor
         void Rebuild(Pose set, Vector2 size)
         {
             if (_root) Destroy(_root.gameObject);
+            _audience = null;
             _root = new GameObject("Set").transform;
             _root.SetParent(transform, false);
             _root.SetPositionAndRotation(set.position, set.rotation);
@@ -183,11 +185,15 @@ namespace Parlor
         {
             // the audience bobs while it applauds
             if (_boxes && _boxes.gameObject.activeSelf)
-                for (int i = 0; i < _boxes.childCount; i++)
+            {
+                if (_audience == null || _audience.Length != _boxes.childCount)
                 {
-                    var a = _boxes.GetChild(i).Find("Audience");
-                    if (a) a.localPosition = new Vector3(0, Mathf.Abs(Mathf.Sin(Time.time * 7f + i * 1.7f)) * 0.006f, 0);
+                    _audience = new Transform[_boxes.childCount];
+                    for (int i = 0; i < _audience.Length; i++) _audience[i] = _boxes.GetChild(i).Find("Audience");
                 }
+                for (int i = 0; i < _audience.Length; i++)
+                    if (_audience[i]) _audience[i].localPosition = new Vector3(0, Mathf.Abs(Mathf.Sin(Time.time * 7f + i * 1.7f)) * 0.006f, 0);
+            }
         }
     }
 
