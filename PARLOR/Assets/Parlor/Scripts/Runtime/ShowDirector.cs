@@ -1709,7 +1709,8 @@ namespace Parlor
         // stage, a new seat, or just "again"). Fists are used one hand at a time in the show, never both at once.
         void Update()
         {
-            if (Paused || Hands == null || Model == null || Model.State == ShowState.Placement) { _bothFists = 0f; return; }
+            // only once the show is under way (after the Arrival): the hands are never read in the first seconds
+            if (Paused || Hands == null || Model == null || BeatsCompleted < 2 || Model.State == ShowState.Placement) { _bothFists = 0f; return; }
             bool both = PoseMath.Fist(Hands.Get(Handed.Left)) && PoseMath.Fist(Hands.Get(Handed.Right));
             _bothFists = both ? _bothFists + Time.deltaTime : 0f;
             if (_bothFists > 2.5f)

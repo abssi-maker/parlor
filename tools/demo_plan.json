@@ -31,7 +31,7 @@
      410
     ],
     [
-     "A tiny magician performs a magic show on YOUR real table.",
+     "A tiny magician performs on YOUR real table, with YOUR things.",
      "body",
      42,
      "cream",
@@ -48,10 +48,24 @@
   },
   {
    "from": "beat Arrival+0.7",
-   "to": "say arrive.hello-0.1",
+   "to": "podium:-0.1",
    "act": "ACT 1  ·  THE TRICKS",
    "do": "A trapdoor opens in your real table.",
-   "shows": "Scene understanding finds the table and anchors the stage"
+   "shows": "MRUK finds the table and anchors the stage"
+  },
+  {
+   "from": "podium:",
+   "to": "say podium.+6.0",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "He hops onto YOUR box.",
+   "shows": "Scene mesh: your real things become his set"
+  },
+  {
+   "from": "say arrive.begin-0.2",
+   "to": "say arrive.begin+7.4",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "\"My first audience in a hundred years.\"",
+   "shows": "The Great Thimble"
   },
   {
    "from": "say gaze.rule-0.4",
@@ -100,13 +114,6 @@
     "w": 600
    },
    "do": "He catches it far below the table.",
-   "shows": ""
-  },
-  {
-   "from": "say coin.lean+2.5",
-   "to": "beat PalmCoin-1.0",
-   "y": 60,
-   "do": "The trapdoor closes. The table is whole.",
    "shows": ""
   },
   {
@@ -165,6 +172,13 @@
    "shows": "Your real room dims around the show"
   },
   {
+   "from": "hides beside a real object-0.6",
+   "to": "say mishap.hide+3.6",
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "He takes cover beside your real box.",
+   "shows": "Beside, never behind: passthrough can't hide him"
+  },
+  {
    "from": "gate mishap.hold →-3.7",
    "to": "monster rises-0.2",
    "act": "ACT 2  ·  THE MISHAP",
@@ -176,8 +190,8 @@
    "to": "gate mishap.close open+1.0",
    "y": 300,
    "act": "ACT 2  ·  THE MISHAP",
-   "do": "It bursts out. He comes back possessed.",
-   "shows": "His giant shadow is thrown on your real wall"
+   "do": "His own Shadow possesses him.",
+   "shows": "\"A hundred years in the dark while HE takes the bows!\""
   },
   {
    "from": "gate mishap.close →-1.0",
@@ -188,16 +202,11 @@
    "shows": "The lesson pays off"
   },
   {
-   "from": "say mishap.ahem+1.7",
-   "to": "beat CardFinale-0.6",
-   "zoom": {
-    "x": 430,
-    "y": 380,
-    "w": 700
-   },
+   "from": "gate mishap.open →+0.2",
+   "to": "say mishap.pity+7.3",
    "act": "ACT 2  ·  THE MISHAP",
-   "do": "He's himself again. And your coin is back.",
-   "shows": ""
+   "do": "It flees through your real door.",
+   "shows": "MRUK door and window labels"
   },
   {
    "from": "beat CardFinale",
@@ -227,55 +236,34 @@
   },
   {
    "from": "beat CurtainCall",
-   "to": "gate curtain.bow open+1.0",
+   "to": "say curtain.shadow-0.2",
    "y": 250,
    "act": "ACT 3  ·  THE FINALE",
-   "do": "You saved the show.",
-   "shows": "Velvet curtains drop over your real wall"
+   "do": "Your room becomes the theatre.",
+   "shows": "Every scanned wall, dressed for the show"
+  },
+  {
+   "from": "say curtain.shadow-0.2",
+   "to": "gate curtain.bow open+2.4",
+   "y": 250,
+   "act": "ACT 3  ·  THE FINALE",
+   "do": "\"Come on out, old friend.\"",
+   "shows": "Its motif, now warm"
   },
   {
    "from": "gate curtain.bow →-0.6",
    "to": "gate curtain.bow →+1.8",
    "y": 250,
    "act": "ACT 3  ·  THE FINALE",
-   "do": "Nod to take a bow.",
+   "do": "Take a bow, all three of you.",
    "shows": "Head pose as input"
   },
   {
-   "take": "take_return",
-   "from": 4.8,
-   "to": 13.5,
-   "y": 300,
-   "act": "THE NEXT NIGHT  ·  SAME TABLE",
-   "do": "Come back: he knocks from the same spot.",
-   "shows": "Spatial anchor and saved progress. New tricks each night"
-  },
-  {
-   "take": "room_Office",
-   "from": 5.8,
-   "to": 7.6,
-   "y": 420,
-   "act": "SAME BUILD  ·  OTHER ROOMS",
-   "do": "Any table, in rooms it was never tuned for.",
-   "shows": "Office"
-  },
-  {
-   "take": "room_LivingRoom",
-   "from": 5.8,
-   "to": 7.6,
-   "y": 420,
-   "act": "SAME BUILD  ·  OTHER ROOMS",
-   "do": "Any table, in rooms it was never tuned for.",
-   "shows": "Living room"
-  },
-  {
-   "take": "room_Bedroom",
-   "from": 5.8,
-   "to": 7.6,
-   "y": 420,
-   "act": "SAME BUILD  ·  OTHER ROOMS",
-   "do": "Any table, in rooms it was never tuned for.",
-   "shows": "Bedroom desk"
+   "from": "say encore.tomorrow-0.3",
+   "to": "say encore.tomorrow+6.2",
+   "act": "ENCORE",
+   "do": "Tomorrow's trick, previewed.",
+   "shows": "Three nights, saved on your table"
   },
   {
    "card": 3.0,

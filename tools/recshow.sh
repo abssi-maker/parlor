@@ -9,6 +9,8 @@ export XRSIM_WINDOW=$(swift $R/tools/winid.swift simulator 2>/dev/null | head -1
 $U command console clear >/dev/null 2>&1
 $U command editor.playmode start --run-in-background true >/dev/null 2>&1
 until $U command console get --tail 400 2>/dev/null | grep -q 'PARLOR\] ready'; do sleep 2; done
+# the XR Operator server (port 8720) must be up before the script talks to it: a stale 'ready' line is not enough
+until lsof -nP -iTCP:8720 -sTCP:LISTEN >/dev/null 2>&1; do sleep 1; done; sleep 2
 osascript -e 'tell application "MetaXRSimulator" to activate' >/dev/null 2>&1; sleep 1
 swift $R/tools/mouseaway.swift >/dev/null 2>&1
 read WID WX WY WW WH <<< "$(swift $R/tools/winbounds.swift simulator | head -1)"

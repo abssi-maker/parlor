@@ -15,7 +15,7 @@ namespace Parlor
         /// "x y z qx qy qz qw | note": head pose in OpenXR conventions (right-handed, -Z forward) for a seat at the
         /// index-th best table. Empty string when the room has no usable table.
         /// </summary>
-        public static string OpenXrSeat(int index = 0, float pitchDown = 32f, float slide = 0f)
+        public static string OpenXrSeat(int index = 0, float pitchDown = 32f, float slide = 0f, float forward = 0f, float drop = 0f)
         {
             var app = ParlorApp.Instance;
             if (!app || app.Room == null || !app.Room.Available) return "";
@@ -36,7 +36,7 @@ namespace Parlor
             if (Vector3.Dot(from - table.Pose.position, across) < 0f) across = -across;
             // slide: metres along the edge, to the seated viewer's right (to dodge real clutter on the table)
             Vector3 along = Vector3.Cross(Vector3.up, -across).normalized;
-            Vector3 eye = table.Pose.position + across * (half + 0.24f) + along * slide + Vector3.up * 0.44f;
+            Vector3 eye = table.Pose.position + across * (half + 0.24f - forward) + along * slide + Vector3.up * (0.44f - drop);
             Quaternion look = Quaternion.LookRotation(-across, Vector3.up) * Quaternion.Euler(pitchDown, 0, 0);
 
             // Unity (left-handed, +Z forward) → OpenXR (right-handed, -Z forward): negate z; quaternion (-x, -y, z, w)
