@@ -21,6 +21,9 @@ $U command script eval --timeout 30 --code "return Parlor.DevAudioRecorder.Begin
 ffmpeg -loglevel error -y -f avfoundation -pixel_format uyvy422 -capture_cursor 0 -framerate 30 -use_wallclock_as_timestamps 1 -i "1:none" \
   -vf "crop=$VW:$VH:$VX:$VY" -c:v libx264 -preset veryfast -crf 16 -pix_fmt yuv420p -copyts $O/${N}_video.mkv < /dev/null &
 FF=$!
+# keep the Mac awake and the simulator in front for the whole take (a locked screen or another window in front ruins it)
+caffeinate -dimsu -w $FF &
+( while kill -0 $FF 2>/dev/null; do osascript -e 'tell application "MetaXRSimulator" to activate' >/dev/null 2>&1; sleep 4; done ) &
 sleep 1
 python3 $R/tools/xrop.py - < $S 2>&1 | grep -E "TIMEOUT|failed|Error|Traceback|warm|retrying" 
 kill -INT $FF; wait $FF 2>/dev/null

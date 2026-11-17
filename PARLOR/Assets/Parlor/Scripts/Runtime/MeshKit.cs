@@ -50,8 +50,14 @@ namespace Parlor
                 Col = new Color(c[i * 3], c[i * 3 + 1], c[i * 3 + 2]);
                 Add(new Vector3(v[i * 3], v[i * 3 + 1], v[i * 3 + 2]), new Vector3(n[i * 3], n[i * 3 + 1], n[i * 3 + 2]), Vector2.zero);
             }
-            // the parts wind counter-clockwise seen from outside; Unity's front faces are clockwise
-            for (int i = 0; i + 2 < t.Length; i += 3) Tri(start + t[i], start + t[i + 2], start + t[i + 1]);
+            // Orient every triangle by its own vertex normals, whatever winding convention the generator used: Unity
+            // draws a triangle's front where Cross(b - a, c - a) points (an earlier fixed flip showed the parts' insides).
+            for (int i = 0; i + 2 < t.Length; i += 3)
+            {
+                int ia = start + t[i], ib = start + t[i + 1], ic = start + t[i + 2];
+                Vector3 face = Vector3.Cross(V[ib] - V[ia], V[ic] - V[ia]);
+                if (Vector3.Dot(face, N[ia] + N[ib] + N[ic]) >= 0f) Tri(ia, ib, ic); else Tri(ia, ic, ib);
+            }
             return this;
         }
 
