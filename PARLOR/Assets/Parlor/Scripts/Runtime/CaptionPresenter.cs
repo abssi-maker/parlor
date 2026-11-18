@@ -10,7 +10,12 @@ namespace Parlor
     /// </summary>
     public sealed class CaptionPresenter : MonoBehaviour
     {
-        public const float MaxWidth = 0.40f;
+        public const float MaxWidth = 0.30f;
+        /// <summary>The speaker: captions ride above this point (his head), so the line is always next to whoever says it.</summary>
+        public Transform Follow;
+        public float FollowHeight = 0.075f;
+        /// <summary>Captions never sink below this world height (the tabletop plus a margin): he is sometimes in the pit.</summary>
+        public float MinWorldY = float.NegativeInfinity;
         const float LineHeight = 0.024f;    // about 1.9 degrees at stage distance: readable without leaning in
 
         TextMeshPro _text;
@@ -38,7 +43,7 @@ namespace Parlor
             _mpb = new MaterialPropertyBlock();
             var p = new MeshKit();
             p.Card(1f, 1f, Vector2.zero, Vector2.one);
-            _panel = p.ToObject("Panel", transform, Mats.Fx("captionpanel", new Color(0.07f, 0.01f, 0.03f, 0.92f), soft: 0.12f, queueOffset: 20)).transform;
+            _panel = p.ToObject("Panel", transform, Mats.Fx("captionpanel", new Color(0.07f, 0.01f, 0.03f, 0.80f), soft: 0.12f, queueOffset: 20)).transform;
             _panel.localPosition = new Vector3(0, 0, 0.002f);
             _panelR = _panel.GetComponent<Renderer>();
 
@@ -84,8 +89,18 @@ namespace Parlor
                 _alpha = Mathf.MoveTowards(_alpha, _target, Time.deltaTime * 5f);
                 Apply(_alpha);
             }
+            if (Follow && _alpha > 0f)
+            {
+                Vector3 want = Follow.position + Vector3.up * FollowHeight;
+                want.y = Mathf.Max(want.y, MinWorldY);
+                transform.position = _alpha < 0.05f ? want : Vector3.Lerp(transform.position, want, 1f - Mathf.Exp(-8f * Time.deltaTime));
+            }
             if (_head != null && _alpha > 0f)
             {
+                // Same reading size at any distance: a line about 1.4 degrees tall (scale 1 = 3.2 cm line at 1.3 m).
+                float dist = Vector3.Distance(transform.position, _head.Head.position);
+                float s = Mathf.Clamp(dist / 1.3f, 0.35f, 1.4f);
+                transform.localScale = Vector3.one * s;
                 // Face the user's head. Our content faces -Z, so "forward" points away from the user.
                 Vector3 away = transform.position - _head.Head.position;
                 if (away.sqrMagnitude > 1e-4f)

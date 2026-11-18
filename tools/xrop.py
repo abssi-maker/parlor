@@ -5,7 +5,7 @@ Usage: xrop.py list
        xrop.py -            reads lines from stdin, one session: "<tool> <json args> [--out file]", "sleep <s>",
                             "eval <C# for the Editor>", "until <seconds> <console text>"
 The server (http://127.0.0.1:8720/sse) exists only while the app is running."""
-import base64, http.client, json, queue, sys, threading, time
+import base64, http.client, json, os, queue, sys, threading, time
 
 HOST, PORT = "127.0.0.1", 8720
 CACHE = {}   # poses from "warm": avoids an Editor compile (and a visible stall) per step
@@ -73,6 +73,76 @@ class Session:
         return ("ERROR " if r.get("isError") else "") + "\n".join(texts)
 
 
+FOLLOW_FILE = "/Users/mac/local/internal/meta/XR/repo/PARLOR/Temp/parlor_follow.pose"
+
+
+def read_follow():
+    """(mode, follow pose7, head pose7) from Dev/CaptureFollow.cs, or None."""
+    try: f = open(FOLLOW_FILE).read().split()
+    except OSError: return None
+    if len(f) != 15 or f[0] not in ("follow", "pause"): return None
+    try: v = [float(x) for x in f[1:]]
+    except ValueError: return None
+    return f[0], v[:7], v[7:]
+
+
+class Follower:
+    """'follow on': keep the simulated head turned to the show's star (video framing), on its own operator session.
+    Every other head move (seat, view, lean, look, nod) switches it off first; 'follow on' resumes it."""
+    def __init__(self):
+        self.on = False; self.lock = threading.Lock(); self.s = None; self.t = None
+
+    def start(self):
+        if self.t is None:
+            self.s = Session(); self.t = threading.Thread(target=self._run, daemon=True); self.t.start()
+        self.on = True
+
+    def stop(self):
+        self.on = False
+        with self.lock: pass          # let a pose already on its way land before the caller moves the head
+
+    def _run(self):
+        while True:
+            t0 = time.time()
+            if self.on:
+                r = read_follow()
+                if r and r[0] == "follow":
+                    with self.lock:
+                        if self.on:
+                            # 10 steps a second, each eased over its own 0.1 s: 30 calls a second swamped the operator (every
+                            # call waits for an Editor frame) and the take's own calls timed out
+                            try:
+                                res = self.s.call("openxr_set_head_pose", {"position": r[1][:3], "orientation": r[1][3:], "duration_seconds": 0.1})
+                                if os.environ.get("FOLLOW_DEBUG"): print("follow:", " ".join("%.3f" % v for v in r[1]), "|", res.replace("\n", " ")[:120], flush=True)
+                            except Exception as e: print("follow step failed:", type(e).__name__, flush=True)
+            time.sleep(max(0.0, 0.1 - (time.time() - t0)))
+
+
+FOLLOW = Follower()
+
+
+def exclusive(s, tool, args):
+    """A hand gesture or nod while following: an eased head pose counts as an input gesture in progress and the
+    simulator refuses a second one, so hold the follower, let its last pose land, call (retrying once), resume."""
+    was = FOLLOW.on
+    FOLLOW.stop()
+    if was: time.sleep(0.15)
+    r = s.call(tool, args)
+    if "already in progress" in r: time.sleep(0.4); r = s.call(tool, args)
+    if was: FOLLOW.on = True
+    return r
+
+
+def nod_pose(head, degrees):
+    """The head pose pitched down by degrees about its own right axis (OpenXR: x right, y up, -z forward)."""
+    import math
+    x, y, z, w = head[3:]
+    a = math.radians(-degrees) / 2.0
+    bx, bw = math.sin(a), math.cos(a)          # rotation about local +X; negative = nose down
+    q = [w * bx + x * bw, y * bw + z * bx, z * bw - y * bx, w * bw - x * bx]
+    return {"position": head[:3], "orientation": q}
+
+
 def main():
     a = sys.argv[1:]
     out = None
@@ -90,6 +160,17 @@ def main():
                 if not line or line.startswith("#"): continue
                 name, _, rest = line.partition(" ")
                 if name == "sleep": time.sleep(float(rest)); continue
+                if name == "follow":   # follow on|off: keep the head turned to the star of the moment (Dev/CaptureFollow.cs)
+                    if rest.strip() == "on": FOLLOW.start()
+                    else: FOLLOW.stop()
+                    print("follow =>", rest.strip(), "| file:", (read_follow() or ["missing"])[0], flush=True); continue
+                if name in ("seat", "view", "lean", "look"): FOLLOW.stop()
+                if name == "nod":      # nod <degrees> [seconds]: pitch the head down from where it is now (the bow)
+                    parts = rest.split(); r = read_follow()
+                    if not r: print("nod => no head pose", flush=True); continue
+                    hp = nod_pose(r[2], float(parts[0]))
+                    if len(parts) > 1: hp["duration_seconds"] = float(parts[1])
+                    print("nod =>", exclusive(s, "openxr_set_head_pose", hp).replace("\n", " ")[:80], flush=True); continue
                 if name == "eval":   # C# in the running Editor, e.g. eval Parlor.ParlorApp.Instance.Replace(); return "ok";
                     import subprocess
                     r = subprocess.run(["unity", "command", "script", "eval", "--timeout", "60", "--code", rest], capture_output=True, text=True)
@@ -137,7 +218,7 @@ def main():
                         q = CACHE.get("Q " + wo) or [float(v) for v in ev('return Parlor.DebugSeat.OpenXrHandRotation("%s");' % wo).split()]
                         if len(q) != 4: print("hand => no orientation", wo, flush=True); continue
                         args["wrist_orientation"] = q
-                    print("hand", parts[0], parts[1], "=>", s.call("openxr_hand_gesture", args).replace("\n", " ")[:300], flush=True); continue
+                    print("hand", parts[0], parts[1], "=>", exclusive(s, "openxr_hand_gesture", args).replace("\n", " ")[:300], flush=True); continue
                 if name == "look":   # look @point [duration]: turn the simulated head towards a named point of the show
                     import subprocess
                     parts = rest.split()

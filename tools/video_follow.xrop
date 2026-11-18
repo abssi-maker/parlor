@@ -1,0 +1,117 @@
+# Follow take: the simulated head turns to keep the magician (or his fleeing Shadow) centred, from Dev/CaptureFollow.cs.
+# Head moves the show reads (gaze card pick, coin lean, bow) run with follow off; every view move resumes it once landed.
+# The whole show performed with simulated hands and head, including the Mishap. No autopilot.
+seat 0 32
+sleep 1
+eval Parlor.NightStore.ResetAll(); Parlor.ParlorApp.Instance.Replace(); return "replaced";
+follow on
+sleep 4
+until 20 placed: tier
+sleep 1
+warm
+sleep 2
+view 40 0.40 0.40 1.0
+sleep 1.1
+follow on
+hand right open @rest {"wrist_orientation":"flat"}
+hand left open @restL {"wrist_orientation":"flat"}
+until 40 gate arrival.hands →
+until 40 beat GazeCardPick
+sleep 3.5
+look @card2 0.6
+until 30 chosen card
+look @palm 0.6
+sleep 0.7
+follow on
+until 40 gate coin.pick open
+warm
+sleep 0.5
+hand right pinch @coin
+sleep 0.4
+until 20 gate coin.place open
+sleep 1.0
+hand right open
+hand right open @rest {"wrist_orientation":"flat"}
+until 40 gate coin.place →
+sleep 0.2
+lean 0.22 0.38 0 1.0
+sleep 12
+view 40 0.40 0.40 1.0
+sleep 1.1
+follow on
+until 60 gate palm.offer open
+hand right open @palm {"wrist_orientation":"palmup"}
+until 20 gate palm.offer →
+sleep 2
+until 60 gate lesson.palm open
+until 30 gate lesson.close open
+sleep 0.6
+hand right fist
+until 20 gate lesson.open open
+sleep 0.5
+hand right open
+until 20 gate lesson.open →
+sleep 1.5
+hand right open @rest {"wrist_orientation":"flat"}
+# --- the Mishap ---
+until 60 beat Mishap
+until 60 gate mishap.hold open
+sleep 0.5
+hand right open @doorR {"wrist_orientation":"flat"}
+hand left open @doorL {"wrist_orientation":"flat"}
+until 20 gate mishap.hold →
+until 20 door bursts
+sleep 0.15
+hand right open @rest {"wrist_orientation":"flat"}
+hand left open @restL {"wrist_orientation":"flat"}
+until 20 monster rises
+view 8 0.45 0.44 1.4
+sleep 1.5
+follow on
+until 40 gate mishap.close open
+sleep 0.8
+hand right fist
+until 20 gate mishap.open open
+sleep 0.6
+hand right open
+until 20 gate mishap.open →
+sleep 2.8
+view 40 0.40 0.40 1.2
+sleep 1.3
+follow on
+sleep 0.6
+hand right open @palm {"wrist_orientation":"palmup"}
+sleep 5
+hand right open @rest {"wrist_orientation":"flat"}
+# --- finale ---
+until 60 gate finale.cover open
+sleep 0.6
+hand right open @caseWrist {"wrist_orientation":"flat"}
+until 20 gate finale.cover →
+until 20 gate finale.lift open
+sleep 0.4
+hand right open @aboveCase {"wrist_orientation":"flat"}
+until 20 gate finale.lift →
+hand right open @rest {"wrist_orientation":"flat"}
+until 80 beat CurtainCall
+view 8 0.45 0.44 1.2
+sleep 1.3
+follow on
+sleep 1.5
+until 60 gate curtain.bow open
+sleep 0.4
+nod 22 0.5
+until 30 gate curtain.bow →
+sleep 0.3
+follow on
+sleep 1
+view 40 0.40 0.40 1.2
+sleep 1.3
+follow on
+until 60 gate encore.poke open
+warm
+sleep 1
+hand right poke @beforeToken
+hand right poke @token
+until 20 gate encore.poke →
+handstate

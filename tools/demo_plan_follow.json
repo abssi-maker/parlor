@@ -1,0 +1,266 @@
+{
+ "segments": [
+  {
+   "from": "say coin.watch+2.7",
+   "to": "say coin.caught+1.3",
+   "zoom": {
+    "x": 360,
+    "y": 300,
+    "w": 780
+   },
+   "do": "",
+   "shows": ""
+  },
+  {
+   "card": 3.0,
+   "still": "say coin.watch+3.2",
+   "live": 360,
+   "lines": [
+    [
+     "PARLOR",
+     "title",
+     150,
+     "gold",
+     230
+    ],
+    [
+     "The Borrowed Coin",
+     "italic",
+     50,
+     "cream",
+     410
+    ],
+    [
+     "A tiny magician performs on YOUR real table, with YOUR things.",
+     "body",
+     42,
+     "cream",
+     540
+    ],
+    [
+     "You are his volunteer: bare hands, no controllers.",
+     "body",
+     42,
+     "cream",
+     602
+    ]
+   ]
+  },
+  {
+   "from": "placed: tier+1.8",
+   "to": "podium:-0.1",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "A trapdoor opens in your real table.",
+   "shows": "MRUK finds the table and anchors the stage"
+  },
+  {
+   "from": "podium:",
+   "to": "say podium.+6.0",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "He springs onto something real on YOUR table.",
+   "shows": "Scene mesh: your real things become his set"
+  },
+  {
+   "from": "say arrive.begin-0.2",
+   "to": "say arrive.begin+7.4",
+   "act": "ACT 1  ·  THE TRICKS",
+   "do": "\"My first audience in a hundred years.\"",
+   "shows": "The Great Thimble"
+  },
+  {
+   "from": "say gaze.rule-0.4",
+   "to": "chosen card-0.3",
+   "do": "Don't touch. Just LOOK at one card.",
+   "shows": "Head gaze picks it. No cursor, no pointer"
+  },
+  {
+   "from": "chosen card-0.3",
+   "to": "beat BorrowedCoin-0.2",
+   "zoom": {
+    "w": 640
+   },
+   "do": "You looked at the diamond. He knows.",
+   "shows": ""
+  },
+  {
+   "from": "say coin.lend-0.3",
+   "to": "gate coin.pick open+0.8",
+   "do": "Pinch the coin he lends you.",
+   "shows": "Hand tracking: pinch to grab"
+  },
+  {
+   "from": "say coin.watch+2.2",
+   "to": "say coin.caught-0.3",
+   "do": "Lean in. The table opens under YOUR coin.",
+   "shows": "A theatre beneath your real table, through passthrough",
+   "zoom": {
+    "x": 130,
+    "y": 60,
+    "w": 1096
+   }
+  },
+  {
+   "from": "say coin.caught-0.3",
+   "to": "say coin.lean+2.5",
+   "zoom": {
+    "x": 300,
+    "y": 420,
+    "w": 600
+   },
+   "do": "He catches it far below the table.",
+   "shows": ""
+  },
+  {
+   "from": "gate palm.offer →-0.9",
+   "to": "beat Lesson-0.1",
+   "zoom": {
+    "w": 680
+   },
+   "do": "Open your palm: the coin appears in it.",
+   "shows": "It rides your palm as you move"
+  },
+  {
+   "from": "gate lesson.close →-0.8",
+   "to": "say lesson.bravo+0.9",
+   "do": "He teaches you the Vanish: fist, open. Gone!",
+   "shows": "Fist and open-hand poses. Remember it"
+  },
+  {
+   "from": "say lesson.friend",
+   "to": "beat Mishap-0.1",
+   "do": "\"Remember that move.\"",
+   "shows": ""
+  },
+  {
+   "from": "beat Mishap",
+   "to": "say mishap.hey+0.6",
+   "zoom": {
+    "w": 560
+   },
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "Something reaches out of the trapdoor...",
+   "shows": ""
+  },
+  {
+   "from": "say mishap.hey+0.6",
+   "to": "hides beside a real object-0.6",
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "...and steals the coin. The lights flicker.",
+   "shows": "Your real room dims around the show"
+  },
+  {
+   "from": "hides beside a real object-0.6",
+   "to": "say mishap.hide+3.6",
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "He takes cover beside your real box.",
+   "shows": "Beside, never behind: passthrough can't hide him"
+  },
+  {
+   "from": "gate mishap.hold →-1.5",
+   "to": "monster rises-0.2",
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "Hold the trapdoor shut with both hands!",
+   "shows": "Two-handed hold, tracked while it bangs"
+  },
+  {
+   "from": "say mishap.monster-1.6",
+   "to": "gate mishap.close open+0.3",
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "His own Shadow possesses him.",
+   "shows": "\"A hundred years in the dark while HE takes the bows!\""
+  },
+  {
+   "from": "gate mishap.close →-1.0",
+   "to": "gate mishap.open →+0.2",
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "Banish it with the Vanish: fist, then open!",
+   "shows": "The lesson pays off"
+  },
+  {
+   "from": "gate mishap.open →+0.2",
+   "to": "say mishap.pity+7.3",
+   "act": "ACT 2  ·  THE MISHAP",
+   "do": "Banished, it runs off along your real wall.",
+   "shows": "Out through a real door or window when the scan has one"
+  },
+  {
+   "from": "say finale.empty-0.3",
+   "to": "say finale.empty+3.4",
+   "act": "ACT 3  ·  THE FINALE",
+   "do": "Cover the case with a flat hand, lift: empty!",
+   "shows": "Palm-down cover gesture"
+  },
+  {
+   "from": "say finale.yours-0.5",
+   "to": "beat CurtainCall-1.2",
+   "zoom": {
+    "w": 660
+   },
+   "act": "ACT 3  ·  THE FINALE",
+   "do": "Your diamond rises beside him.",
+   "shows": "The card you chose with your eyes"
+  },
+  {
+   "from": "beat CurtainCall",
+   "to": "say curtain.shadow-0.2",
+   "act": "ACT 3  ·  THE FINALE",
+   "do": "Your room becomes the theatre.",
+   "shows": "Every scanned wall, dressed for the show"
+  },
+  {
+   "from": "say curtain.shadow-0.2",
+   "to": "gate curtain.bow open+2.4",
+   "act": "ACT 3  ·  THE FINALE",
+   "do": "\"Come on out, old friend.\"",
+   "shows": "Its motif, now warm"
+  },
+  {
+   "from": "gate curtain.bow →-0.6",
+   "to": "gate curtain.bow →+1.8",
+   "act": "ACT 3  ·  THE FINALE",
+   "do": "Take a bow, all three of you.",
+   "shows": "Head pose as input"
+  },
+  {
+   "from": "say encore.tomorrow-0.3",
+   "to": "say encore.tomorrow+6.2",
+   "act": "ENCORE",
+   "do": "Tomorrow's trick, previewed.",
+   "shows": "Three nights, saved on your table"
+  },
+  {
+   "card": 3.0,
+   "still": "say encore.tomorrow+1.0",
+   "lines": [
+    [
+     "PARLOR",
+     "title",
+     140,
+     "gold",
+     240
+    ],
+    [
+     "A magic show that needs your table, your hands and your room.",
+     "body",
+     40,
+     "cream",
+     430
+    ],
+    [
+     "Scene understanding  ·  hand tracking  ·  head gaze  ·  passthrough  ·  spatial anchors",
+     "body",
+     32,
+     "cream",
+     530
+    ],
+    [
+     "Hands only. Any table.",
+     "italic",
+     46,
+     "gold",
+     660
+    ]
+   ]
+  }
+ ]
+}

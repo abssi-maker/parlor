@@ -88,6 +88,9 @@ namespace Parlor
             Model = new ShowModel(night);
             Night = NightCatalog.For(night);
             _portalHome = Vector3.zero;
+            // captions ride above the speaker's head, never below the tabletop
+            Captions.Follow = Magician.HeadBone;
+            Captions.MinWorldY = Stage.position.y + 0.10f;
             _sparkle = Sparkles.Create(Stage, "Sparkle", new Color(1f, 0.84f, 0.45f, 0.9f), 0.012f, 0.9f, 220);
             _dust = Sparkles.Create(Stage, "Dust", new Color(1f, 0.9f, 0.7f, 0.35f), 0.004f, 5f, 40);
             _roses = Sparkles.Create(Stage, "Roses", new Color(0.95f, 0.10f, 0.16f, 0.95f), 0.030f, 2.6f, 60, portalClipped: false, gravity: 0.25f);
@@ -202,7 +205,7 @@ namespace Parlor
             Magician.EyeTarget = null;
             if (Claw) { Claw.gameObject.SetActive(false); Claw.SetGrip(0f); }
             Portal.SetSeam(false);
-            Captions.transform.localPosition = Layout.Caption;
+            Captions.FollowHeight = 0.075f;
 
             bool propsOut = onStage;
             Case.gameObject.SetActive(propsOut);
@@ -1171,7 +1174,7 @@ namespace Parlor
             Portal.LiftY = LiftBottom;
             Magician.SetMonster(true);
             Magician.Menace();
-            Captions.transform.localPosition = Layout.Caption + Vector3.up * 0.17f;   // above the horns of a bigger him
+            Captions.FollowHeight = 0.15f;                                           // above the horns of a bigger him
             Magician.LookTarget = Head.Head.position;
             Dimmer.SetTint(new Color(0.18f, 0f, 0.03f));
             Dimmer.SetLevel(0.8f, 1f);
@@ -1223,7 +1226,7 @@ namespace Parlor
             Sfx("shadow_motif", Shadow.Position, 0.6f, 1.6f);           // the same notes, scampering away
             Magician.SetShake(0f);
             Magician.SetMonster(false);
-            Captions.transform.localPosition = Layout.Caption;
+            Captions.FollowHeight = 0.075f;
             Magician.SetHatAskew(22f);
             Magician.Idle();
             Dimmer.SetLevel(0f, 1.1f);

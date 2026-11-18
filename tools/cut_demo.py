@@ -8,7 +8,7 @@ Written for judges who have never heard of the project:
   * opens with a title card that says what the thing is, closes with one that says what was shown.
 
 Segments are anchored to the take's own event log (<take>.wav.events, written by DevAudioRecorder.Event), so a new
-take re-cuts itself. Usage: cut_demo.py <take name> [--dry]"""
+take re-cuts itself. Usage: cut_demo.py <take name> [--plan file.json] [--dry]"""
 import json, os, re, subprocess, sys, tempfile
 
 R = "/Users/mac/local/internal/meta/XR/repo"
@@ -76,13 +76,13 @@ def label_filters(do, shows, act):
     footage tag bottom-right so the simulator's photoreal room is never mistaken for real passthrough."""
     f = []
     def text(t, font, size, color, x, y, box=True, spacing=8):
-        b = ":box=1:boxcolor=0x170A0E@0.82:boxborderw=12" if box else ""
+        b = ":box=1:boxcolor=0x170A0E@0.70:boxborderw=12" if box else ""
         f.append(f"drawtext=fontfile={font}:textfile={textfile(t)}:fontcolor={color}:fontsize={size}:x={x}:y={y}:line_spacing={spacing}{b}")
     y = 30
-    if act: text(act, FB, 26, GOLD, 36, y); y += 56
-    w = wrap(do, 28)
-    text(w, FB, 44, CREAM, 36, y); y += 56 * (w.count("\n") + 1) + 16
-    if shows: text(wrap(shows, 34), FB, 32, GOLD, 36, y)
+    if act: text(act, FB, 22, GOLD, 32, y); y += 46
+    w = wrap(do, 30)
+    text(w, FB, 36, CREAM, 32, y); y += 46 * (w.count("\n") + 1) + 12
+    if shows: text(wrap(shows, 36), FB, 26, GOLD, 32, y)
     return f
 
 
@@ -94,13 +94,23 @@ def band(y):
     return f"crop=1226:{BAND}:0:{y},scale={FW}:{H}:flags=lanczos,pad={W}:{H}:{(W - FW) // 2}:0:color={BG}"
 
 
+# Where the follow take (Dev/CaptureFollow.cs) puts the star in the recorded frame: the left eye's image centre. The
+# recorder's capture box sits 130 px left of the eye image (a 130 px strip of window background down the left edge,
+# the image's right 130 px cut off), so that centre is at x = 613 + 130; measured on take_v12 at (743, 760).
+CX, CY = 743, 760
+FOLLOW_W = 2 * (1226 - CX)      # widest frame centred on him that stays inside the capture (966 px, 1.7x)
+
+
 def frame_filter(seg):
-    """The simulator view at 1.35x: a tall band at height y, or a close-up box of the same shape."""
+    """The simulator view at 1.35x: a tall band at height y, or a close-up box of the same shape. Without a position
+    both are centred on the view's centre, where the follow take (Dev/CaptureFollow.cs) keeps the star."""
     z = seg.get("zoom")
     if z:
         w = z["w"]; h = round(w * BAND / 1226)
-        return f"crop={w}:{h}:{z['x']}:{z['y']},scale={FW}:{H}:flags=lanczos,pad={W}:{H}:{(W - FW) // 2}:0:color={BG}"
-    return band(seg.get("y", 300))
+        x = z.get("x", CX - w // 2); y = z.get("y", CY - h // 2)
+        return f"crop={w}:{h}:{x}:{y},scale={FW}:{H}:flags=lanczos,pad={W}:{H}:{(W - FW) // 2}:0:color={BG}"
+    if "y" in seg: return band(seg["y"])
+    return frame_filter({"zoom": {"w": FOLLOW_W}})
 
 
 RING = R + "/Captures/_demo_assets/ring.png"
@@ -162,7 +172,8 @@ def main():
     for f in os.listdir(OUT): os.remove(os.path.join(OUT, f))
     tl = Timeline(events(take))
     main_src = f"{REC}/{take}.mp4"
-    plan = json.load(open(R + "/tools/demo_plan.json"))
+    plan_file = sys.argv[sys.argv.index("--plan") + 1] if "--plan" in sys.argv else R + "/tools/demo_plan.json"
+    plan = json.load(open(plan_file))
     parts, total = [], 0.0
     idx = 0
     for seg in plan["segments"]:
