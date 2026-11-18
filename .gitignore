@@ -35,3 +35,33 @@ ArtGen/
 
 # Generated audio staging (final clips are copied into PARLOR/Assets)
 AudioGen/
+
+# Unity build cache, crash dumps, recovery scenes
+PARLOR/.utmp/
+PARLOR/AgentScripts/
+PARLOR/mono_crash*.blob
+*.blob
+PARLOR/Assets/_Recovery/
+PARLOR/Assets/_Recovery.meta
+PARLOR/*.slnx
+PARLOR/*.pidb
+PARLOR/*.userprefs
+PARLOR/sysinfo.txt
+PARLOR/crashlytics-build.properties
+PARLOR/Assets/StreamingAssets/aa/
+*.unitypackage
+
+# Local machine settings (debug-agent token, LAN IP)
+PARLOR/Assets/Resources/DevAgentSettings.asset
+PARLOR/Assets/Resources/DevAgentSettings.asset.meta
+
+# Editor / IDE
+PARLOR/.vscode/
+.vscode/
+.idea/
+
+# Python / misc
+__pycache__/
+*.pyc
+.venv/
+*.log
